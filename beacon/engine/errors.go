@@ -44,7 +44,7 @@ func (e *EngineAPIError) ErrorData() interface{} {
 func (e *EngineAPIError) With(err error) *EngineAPIError {
 	return &EngineAPIError{
 		code: e.code,
-		msg:  e.msg,
+		msg:  err.Error(),
 		err:  err,
 	}
 }
