@@ -23,6 +23,7 @@ func (api *ConsensusAPI) SignalSuperchainV1(signal *SuperchainSignal) (params.Pr
 		log.Info("Received empty superchain version signal", "local", params.OPStackSupport)
 		return params.OPStackSupport, nil
 	}
+	log.Info("Received superchain version signal", "required", signal.Required)
 	// update metrics and log any warnings/info
 	requiredProtocolDeltaGauge.Update(int64(params.OPStackSupport.Compare(signal.Required)))
 	recommendedProtocolDeltaGauge.Update(int64(params.OPStackSupport.Compare(signal.Recommended)))

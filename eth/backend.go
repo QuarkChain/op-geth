@@ -561,6 +561,7 @@ func (s *Ethereum) HandleRequiredProtocolVersion(required params.ProtocolVersion
 	case params.OutdatedPatch:
 		haveLevel = 1
 	}
+	log.Warn("HandleRequiredProtocolVersion", "required", required, "local", params.OPStackSupport, "needLevel", needLevel, "haveLevel", haveLevel)
 	if haveLevel >= needLevel { // halt if we opted in to do so at this granularity
 		log.Error("Opted to halt, unprepared for protocol change", "required", required, "local", params.OPStackSupport)
 		return s.nodeCloser()
