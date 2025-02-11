@@ -47,6 +47,11 @@ var SepoliaBootnodes = []string{
 	"enode://9e9492e2e8836114cc75f5b929784f4f46c324ad01daf87d956f98b3b6c5fcba95524d6e5cf9861dc96a2c8a171ea7105bb554a197455058de185fa870970c7c@138.68.123.152:30303", // sepolia-bootnode-1-ams3
 }
 
+var BetaTestnetBootnodes = []string{
+	"enode://8c83b5f320d499e6b92d26b986931780d35ae97e6621fc3cafce0ced5b33ead4fd06aef00e7a4dca11fee0ebcd168898d2b8ac94ca642fba87d73bd54b004050@176.9.142.29:30303",
+	"enode://995b92106bc966ec4f6bf2dee5f5238b1c4c46e0a958551cd49654737f63fd40291e25cadb4d8695e5d7b4714a31d1bb1405c24c6f7c00f76d947613591b5322@46.4.99.154:30303",
+}
+
 var V5Bootnodes = []string{
 	// Teku team's bootnode
 	"enr:-KG4QMOEswP62yzDjSwWS4YEjtTZ5PO6r65CPqYBkgTTkrpaedQ8uEUo1uMALtJIvb2w_WWEVmg5yt1UAuK1ftxUU7QDhGV0aDKQu6TalgMAAAD__________4JpZIJ2NIJpcIQEnfA2iXNlY3AyNTZrMaEDfol8oLr6XJ7FsdAYE7lpJhKMls4G_v6qQOGKJUWGb_uDdGNwgiMog3VkcIIjKA", // # 4.157.240.54 | azure-us-east-virginia
