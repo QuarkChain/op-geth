@@ -1175,8 +1175,6 @@ func setBootstrapNodes(ctx *cli.Context, cfg *p2p.Config) {
 			urls = params.HoleskyBootnodes
 		case ctx.Bool(SepoliaFlag.Name):
 			urls = params.SepoliaBootnodes
-		case ctx.Uint64(NetworkIdFlag.Name) == 3335:
-			urls = params.BetaTestnetBootnodes
 		}
 	}
 	cfg.BootstrapNodes = mustParseBootnodes(urls)
@@ -1213,6 +1211,8 @@ func setBootstrapNodesV5(ctx *cli.Context, cfg *p2p.Config) {
 		} else {
 			urls = params.V5OPTestnetBootnodes
 		}
+	case ctx.Uint64(NetworkIdFlag.Name) == 3335:
+		urls = params.BetaTestnetBootnodes
 	}
 
 	cfg.BootstrapNodesV5 = make([]*enode.Node, 0, len(urls))
