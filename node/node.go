@@ -36,6 +36,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/ethdb/memorydb"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -60,6 +61,7 @@ type Node struct {
 	lifecycles    []Lifecycle // All registered backends, services, and auxiliary services that have a lifecycle
 	rpcAPIs       []rpc.API   // List of APIs currently provided by the node
 	http          *httpServer //
+	httpSGT       *httpServer //
 	ws            *httpServer //
 	httpAuth      *httpServer //
 	wsAuth        *httpServer //
@@ -67,6 +69,8 @@ type Node struct {
 	inprocHandler *rpc.Server // In-process RPC request handler to process the API requests
 
 	databases map[*closeTrackingDB]struct{} // All open databases
+
+	APIBackend ethapi.Backend // Ethereum API backend, used for SGT
 }
 
 const (
@@ -130,7 +134,7 @@ func New(conf *Config) (*Node, error) {
 	node.keyDirTemp = isEphem
 	// Creates an empty AccountManager with no backends. Callers (e.g. cmd/geth)
 	// are required to add the backends later on.
-	node.accman = accounts.NewManager(&accounts.Config{InsecureUnlockAllowed: conf.InsecureUnlockAllowed})
+	node.accman = accounts.NewManager(nil)
 
 	// Initialize the p2p server. This creates the node key and discovery databases.
 	node.server.Config.PrivateKey = node.config.NodeKey()
@@ -151,6 +155,7 @@ func New(conf *Config) (*Node, error) {
 
 	// Configure RPC servers.
 	node.http = newHTTPServer(node.log, conf.HTTPTimeouts)
+	node.httpSGT = newHTTPServer(node.log, conf.HTTPTimeouts)
 	node.httpAuth = newHTTPServer(node.log, conf.HTTPTimeouts)
 	node.ws = newHTTPServer(node.log, rpc.DefaultHTTPTimeouts)
 	node.wsAuth = newHTTPServer(node.log, rpc.DefaultHTTPTimeouts)
@@ -375,25 +380,13 @@ func (n *Node) obtainJWTSecret(cliParam string) ([]byte, error) {
 // startup. It's not meant to be called at any time afterwards as it makes certain
 // assumptions about the state of the node.
 func (n *Node) startRPC() error {
-	// Filter out personal api
-	var apis []rpc.API
-	for _, api := range n.rpcAPIs {
-		if api.Namespace == "personal" {
-			if n.config.EnablePersonal {
-				log.Warn("Deprecated personal namespace activated")
-			} else {
-				continue
-			}
-		}
-		apis = append(apis, api)
-	}
-	if err := n.startInProc(apis); err != nil {
+	if err := n.startInProc(n.rpcAPIs); err != nil {
 		return err
 	}
 
 	// Configure IPC.
 	if n.ipc.endpoint != "" {
-		if err := n.ipc.start(apis); err != nil {
+		if err := n.ipc.start(n.rpcAPIs); err != nil {
 			return err
 		}
 	}
@@ -412,6 +405,30 @@ func (n *Node) startRPC() error {
 			return err
 		}
 		if err := server.enableRPC(openAPIs, httpConfig{
+			CorsAllowedOrigins: n.config.HTTPCors,
+			Vhosts:             n.config.HTTPVirtualHosts,
+			Modules:            n.config.HTTPModules,
+			prefix:             n.config.HTTPPathPrefix,
+			rpcEndpointConfig:  rpcConfig,
+		}); err != nil {
+			return err
+		}
+		servers = append(servers, server)
+		return nil
+	}
+	initHttpSGT := func(server *httpServer) error {
+		if n.APIBackend == nil {
+			panic("bug: Node.APIBackend is nil when initHttpSGT is called")
+		}
+		if err := server.setListenAddr(n.config.HTTPSGTHost, n.config.HTTPSGTPort); err != nil {
+			return err
+		}
+		// appended API will override the existing one
+		updatedOpenAPIs := append(openAPIs, rpc.API{
+			Namespace: "eth",
+			Service:   ethapi.NewBlockChainAPIForSGT(n.APIBackend),
+		})
+		if err := server.enableRPC(updatedOpenAPIs, httpConfig{
 			CorsAllowedOrigins: n.config.HTTPCors,
 			Vhosts:             n.config.HTTPVirtualHosts,
 			Modules:            n.config.HTTPModules,
@@ -442,6 +459,11 @@ func (n *Node) startRPC() error {
 	}
 
 	initAuth := func(port int, secret []byte) error {
+		authModules := DefaultAuthModules
+		if slices.Contains(n.config.HTTPModules, "miner") {
+			authModules = append(authModules, "miner")
+		}
+
 		// Enable auth via HTTP
 		server := n.httpAuth
 		if err := server.setListenAddr(n.config.AuthAddr, port); err != nil {
@@ -456,7 +478,7 @@ func (n *Node) startRPC() error {
 		err := server.enableRPC(allAPIs, httpConfig{
 			CorsAllowedOrigins: DefaultAuthCors,
 			Vhosts:             n.config.AuthVirtualHosts,
-			Modules:            DefaultAuthModules,
+			Modules:            authModules,
 			prefix:             DefaultAuthPrefix,
 			rpcEndpointConfig:  sharedConfig,
 		})
@@ -486,6 +508,12 @@ func (n *Node) startRPC() error {
 	if n.config.HTTPHost != "" {
 		// Configure legacy unauthenticated HTTP.
 		if err := initHttp(n.http, n.config.HTTPPort); err != nil {
+			return err
+		}
+	}
+	if n.config.HTTPSGTHost != "" {
+		// Configure unauthenticated HTTP for SGT.
+		if err := initHttpSGT(n.httpSGT); err != nil {
 			return err
 		}
 	}
@@ -528,6 +556,7 @@ func (n *Node) wsServerForPort(port int, authenticated bool) *httpServer {
 
 func (n *Node) stopRPC() {
 	n.http.stop()
+	n.httpSGT.stop()
 	n.ws.stop()
 	n.httpAuth.stop()
 	n.wsAuth.stop()
@@ -723,7 +752,7 @@ func (n *Node) OpenDatabase(name string, cache, handles int, namespace string, r
 	if n.config.DataDir == "" {
 		db = rawdb.NewMemoryDatabase()
 	} else {
-		db, err = rawdb.Open(rawdb.OpenOptions{
+		db, err = openDatabase(openOptions{
 			Type:      n.config.DBEngine,
 			Directory: n.ResolvePath(name),
 			Namespace: namespace,
@@ -732,7 +761,6 @@ func (n *Node) OpenDatabase(name string, cache, handles int, namespace string, r
 			ReadOnly:  readonly,
 		})
 	}
-
 	if err == nil {
 		db = n.wrapDatabase(db)
 	}
@@ -755,7 +783,7 @@ func (n *Node) OpenDatabaseWithFreezer(name string, cache, handles int, ancient 
 	if n.config.DataDir == "" {
 		db, err = rawdb.NewDatabaseWithFreezer(memorydb.New(), "", namespace, readonly)
 	} else {
-		db, err = rawdb.Open(rawdb.OpenOptions{
+		db, err = openDatabase(openOptions{
 			Type:              n.config.DBEngine,
 			Directory:         n.ResolvePath(name),
 			AncientsDirectory: n.ResolveAncient(name, ancient),
@@ -765,7 +793,6 @@ func (n *Node) OpenDatabaseWithFreezer(name string, cache, handles int, ancient 
 			ReadOnly:          readonly,
 		})
 	}
-
 	if err == nil {
 		db = n.wrapDatabase(db)
 	}

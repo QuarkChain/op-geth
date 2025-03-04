@@ -1,0 +1,79 @@
+title: "SWC-op-geth - official-op-geth fork diff overview"
+footer: |
+  Fork-diff overview of [`SWC op-geth`](https://github.com/ethstorage/op-geth), a fork of [`official op-geth`](https://github.com/ethereum-optimism/op-geth).
+  and execution-engine of the [SWC OP-stack](https://github.com/ethstorage/optimism).
+base:
+  name: official op-geth
+  url: https://github.com/ethereum-optimism/op-geth
+  hash: b84907bf4d9577c429208165653ab1566c45c53d
+fork:
+  name: SWC op-geth
+  url: https://github.com/ethstorage/op-geth
+  ref: refs/heads/op-es
+def:
+  title: "op-geth"
+  description: |
+    This is an overview of the changes in [`SWC op-geth`](https://github.com/ethstorage/op-geth),
+    a fork of [`official op-geth`](https://github.com/ethereum-optimism/op-geth), part of the [SWC OP-stack](https://github.com/ethstorage/optimism).
+  sub:
+    - title: "Soul Gas Token modifications"
+      description: |
+        When charging gas, the EVM is extended to first charge from the Soul Gas Token (which is a soul bounded ERC20) balance;
+        Then charge from the native balance if it's not enough.
+
+        The txpool and gas estimator are also extended to use the sum of native balance and Soul Gas Token balance as the effective balance.
+
+        In order to fix a compatibility [issue](https://github.com/ethstorage/optimism/issues/148) with wallets, the node is
+        also extended to listen to another http port alongside the default one, the only different is that the `eth_GetBalance` API
+        will return the sum of native balance and Soul Gas Token balance.
+      globs:
+        - "core/state_transition.go"
+        - "core/txpool/legacypool/legacypool.go"
+        - "core/txpool/blobpool/blobpool.go"
+        - "core/txpool/validation.go"
+        - "eth/gasestimator/gasestimator.go"
+        - "internal/ethapi/api.go"
+        - "node/config.go"
+        - "node/defaults.go"
+        - "node/node.go"
+        - "cmd/geth/main.go"
+        - "cmd/utils/flags.go"
+        - "cmd/geth/config.go"
+    - title: "L2 Blob modifications"
+      description: |
+        The txpool is extended to allow blob transaction is l2 blob is enabled.
+
+        The block-building code (in the "miner" package because of Proof-Of-Work legacy of ethereum) is extended to ensure that,
+        for blob transactions, the blobs are required when it's sequencing, but not required when it's deriving.
+
+        We also charge a minimum data-availability fee for each blob.
+      globs:
+        - "miner/worker.go"
+        - "eth/api_backend.go"
+        - "eth/backend.go"
+        - "core/txpool/validation.go"
+        - "core/types/transaction.go"
+        - "core/types/transaction_signing.go"
+        - "params/config.go"
+        - "params/protocol_params.go"
+        - "beacon/engine/types.go"
+        - "core/types/rollup_cost.go"
+    - title: "Custom Gas Token modification"
+      description: |
+        As we're using the QKC token (which is an ERC20 token) on L1 as the gas token, the `RPCTxFeeCap` is changed from 1 to 1000.
+      globs:
+        - "eth/ethconfig/config.go"
+
+
+# ignored globally, does not count towards line count
+ignore:
+  - ".circleci/*"
+  - "*.sum"
+  - "go.mod"
+  - "fork.yaml"
+  - "Makefile"
+  - ".golangci.yml"
+  - ".github/**"
+  - "**/*.gob" # data asset, not code
+  - "core/vm/testdata/precompiles/p256Verify.json" # data asset, not code
+  - "eth/tracers/internal/tracetest/testdata/**/*.json"

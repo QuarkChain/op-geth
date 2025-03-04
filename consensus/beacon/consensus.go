@@ -28,6 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/tracing"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/trie"
@@ -131,9 +132,6 @@ func (beacon *Beacon) splitHeaders(chain consensus.ChainHeaderReader, headers []
 	}
 	// TTD is not defined yet, all headers should be in legacy format.
 	ttd := chain.Config().TerminalTotalDifficulty
-	if ttd == nil {
-		return headers, nil, nil
-	}
 	ptd := chain.GetTd(headers[0].ParentHash, headers[0].Number.Uint64()-1)
 	if ptd == nil {
 		return nil, nil, consensus.ErrUnknownAncestor
@@ -365,7 +363,7 @@ func (beacon *Beacon) Prepare(chain consensus.ChainHeaderReader, header *types.H
 }
 
 // Finalize implements consensus.Engine and processes withdrawals on top.
-func (beacon *Beacon) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, body *types.Body) {
+func (beacon *Beacon) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state vm.StateDB, body *types.Body) {
 	if !beacon.IsPoSHeader(header) {
 		beacon.ethone.Finalize(chain, header, state, body)
 		return
@@ -403,8 +401,21 @@ func (beacon *Beacon) FinalizeAndAssemble(chain consensus.ChainHeaderReader, hea
 	// Assign the final state root to header.
 	header.Root = state.IntermediateRoot(true)
 
+	if chain.Config().IsOptimismIsthmus(header.Time) {
+		if body.Withdrawals == nil || len(body.Withdrawals) > 0 { // We verify nil/empty withdrawals in the CL pre-Isthmus
+			return nil, fmt.Errorf("expected non-nil empty withdrawals operation list in Isthmus, but got: %v", body.Withdrawals)
+		}
+		// State-root has just been computed, we can get an accurate storage-root now.
+		h := state.GetStorageRoot(params.OptimismL2ToL1MessagePasser)
+		header.WithdrawalsHash = &h
+		sa := state.AccessEvents()
+		if sa != nil {
+			sa.AddAccount(params.OptimismL2ToL1MessagePasser, false) // include in execution witness
+		}
+	}
+
 	// Assemble the final block.
-	block := types.NewBlock(header, body, receipts, trie.NewStackTrie(nil))
+	block := types.NewBlock(header, body, receipts, trie.NewStackTrie(nil), chain.Config())
 
 	// Create the block witness and attach to block.
 	// This step needs to happen as late as possible to catch all access events.
@@ -416,21 +427,25 @@ func (beacon *Beacon) FinalizeAndAssemble(chain consensus.ChainHeaderReader, hea
 		if parent == nil {
 			return nil, fmt.Errorf("nil parent header for block %d", header.Number)
 		}
-
 		preTrie, err := state.Database().OpenTrie(parent.Root)
 		if err != nil {
 			return nil, fmt.Errorf("error opening pre-state tree root: %w", err)
 		}
-
 		vktPreTrie, okpre := preTrie.(*trie.VerkleTrie)
 		vktPostTrie, okpost := state.GetTrie().(*trie.VerkleTrie)
+
+		// The witness is only attached iff both parent and current block are
+		// using verkle tree.
 		if okpre && okpost {
 			if len(keys) > 0 {
-				verkleProof, stateDiff, err := vktPreTrie.Proof(vktPostTrie, keys, vktPreTrie.FlatdbNodeResolver)
+				verkleProof, stateDiff, err := vktPreTrie.Proof(vktPostTrie, keys)
 				if err != nil {
 					return nil, fmt.Errorf("error generating verkle proof for block %d: %w", header.Number, err)
 				}
-				block = block.WithWitness(&types.ExecutionWitness{StateDiff: stateDiff, VerkleProof: verkleProof})
+				block = block.WithWitness(&types.ExecutionWitness{
+					StateDiff:   stateDiff,
+					VerkleProof: verkleProof,
+				})
 			}
 		}
 	}

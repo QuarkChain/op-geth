@@ -34,6 +34,9 @@ const (
 	DefaultWSPort   = 8546        // Default TCP port for the websocket RPC server
 	DefaultAuthHost = "localhost" // Default host interface for the authenticated apis
 	DefaultAuthPort = 8551        // Default port for the authenticated apis
+
+	DefaultHTTPSGTHost = "localhost" // Default host interface for the HTTPSGT RPC server
+	DefaultHTTPSGTPort = 8645        // Default TCP port for the HTTPSGT RPC server
 )
 
 const (
@@ -56,6 +59,7 @@ var (
 var DefaultConfig = Config{
 	DataDir:              DefaultDataDir(),
 	HTTPPort:             DefaultHTTPPort,
+	HTTPSGTPort:          DefaultHTTPSGTPort,
 	AuthAddr:             DefaultAuthHost,
 	AuthPort:             DefaultAuthPort,
 	AuthVirtualHosts:     DefaultAuthVhosts,
