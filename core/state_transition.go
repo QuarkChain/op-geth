@@ -866,11 +866,7 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 		// Note optimismConfig will not be nil if rules.IsOptimismBedrock is true
 		if optimismConfig := st.evm.ChainConfig().Optimism; optimismConfig != nil && rules.IsOptimismBedrock && !st.msg.IsDepositTx {
 			gasCost := new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.evm.Context.BaseFee)
-			// check if st.evm.Context.BlobBaseFee is nil
-			if st.evm.Context.BlobBaseFee == nil {
-				return nil, fmt.Errorf("blob base fee is nil")
-			}
-			if st.evm.ChainConfig().IsCancun(st.evm.Context.BlockNumber, st.evm.Context.Time) {
+			if st.evm.ChainConfig().IsCancun(st.evm.Context.BlockNumber, st.evm.Context.Time) && st.evm.Context.BlobBaseFee != nil {
 				gasCost.Add(gasCost, new(big.Int).Mul(new(big.Int).SetUint64(st.blobGasUsed()), st.evm.Context.BlobBaseFee))
 			}
 
