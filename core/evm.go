@@ -17,7 +17,6 @@
 package core
 
 import (
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -58,14 +57,9 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 	if header.BaseFee != nil {
 		baseFee = new(big.Int).Set(header.BaseFee)
 	}
-	fmt.Printf("========ExcessBlobGas=%d\n", header.ExcessBlobGas)
 	if header.ExcessBlobGas != nil {
 		blobBaseFee = eip4844.CalcBlobFee(*header.ExcessBlobGas)
-	} else {
-		panic("header.ExcessBlobGas is nil")
 	}
-	fmt.Printf("========blobBaseFee=%d\n", blobBaseFee)
-
 	if header.Difficulty.Sign() == 0 {
 		random = &header.MixDigest
 	}
