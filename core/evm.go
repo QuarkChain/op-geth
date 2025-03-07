@@ -58,9 +58,11 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 	if header.BaseFee != nil {
 		baseFee = new(big.Int).Set(header.BaseFee)
 	}
-	fmt.Printf("========ExcessBlobGas=%d\n", *header.ExcessBlobGas)
+	fmt.Printf("========ExcessBlobGas=%d\n", header.ExcessBlobGas)
 	if header.ExcessBlobGas != nil {
 		blobBaseFee = eip4844.CalcBlobFee(*header.ExcessBlobGas)
+	} else {
+		panic("header.ExcessBlobGas is nil")
 	}
 	fmt.Printf("========blobBaseFee=%d\n", blobBaseFee)
 
