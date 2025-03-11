@@ -525,10 +525,10 @@ func (f *faucet) loopSwap() {
 					}
 				}
 				if success {
+					log.Info("Processed Sepolia block", "blockNumber", blockNum)
 					blockNum = new(big.Int).Add(blockNum, big.NewInt(1))
 					f.start = blockNum
 					f.db.Put([]byte(fmt.Sprintf(startKey)), block.Number().Bytes())
-					log.Info("Processed Sepolia block", "blockNumber", blockNum)
 				} else {
 					time.Sleep(2 * time.Second)
 				}
