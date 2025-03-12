@@ -57,7 +57,7 @@ var (
 	apiPortFlag = flag.Int("apiport", 81, "Listener port for the HTTP API connection")
 	dataPath    = flag.String("datadir", "./es-data", "Data directory for the databases")
 
-	payoutFlag  = flag.Int("faucet.amount", 1, "Number of (0.01) WSC to pay out per user request")
+	payoutFlag  = flag.Int("faucet.amount", 1, "Number of (0.01) QKC to pay out per user request")
 	minutesFlag = flag.Int("faucet.minutes", 1440, "Number of minutes to wait between funding rounds")
 
 	accJSONFlag = flag.String("account.json", "", "Key json file to fund user requests with")
@@ -137,6 +137,7 @@ type faucet struct {
 	nonce    uint64             // Current pending nonce of the faucet
 	chainId  *big.Int           // Current chainId use to generate faucet tx
 	price    *big.Int           // Current gas price to issue funds with
+	payout   *big.Int
 
 	conns    []*wsConn            // Currently live websocket connections
 	timeouts map[string]time.Time // History of users and their funding timeouts
@@ -184,6 +185,7 @@ func newFaucet(rpcFlag, ethRpcFlag, sepRpcFlag string, ks *keystore.KeyStore, db
 		keystore:  ks,
 		db:        db,
 		chainId:   chainId,
+		payout:    new(big.Int).Div(big.NewInt(int64(*payoutFlag)), big.NewInt(100)),
 		account:   ks.Accounts()[0],
 		timeouts:  make(map[string]time.Time),
 		update:    make(chan struct{}, 1),
@@ -263,10 +265,12 @@ func (f *faucet) apiHandler(w http.ResponseWriter, r *http.Request) {
 	f.lock.RLock()
 	reqs := f.reqs
 	f.lock.RUnlock()
+
 	if err = send(wsconn, map[string]interface{}{
 		"funds":    new(big.Int).Div(balance, ether),
 		"funded":   nonce,
 		"requests": reqs,
+		"payout":   f.payout,
 		"target":   f.account.Address.Hex(),
 	}, 3*time.Second); err != nil {
 		log.Warn("Failed to send initial stats to client", "err", err)
@@ -577,12 +581,12 @@ func (f *faucet) loop() {
 			log.Debug("Updated faucet state", "number", head.Number, "hash", head.Hash(), "age", common.PrettyAge(timestamp), "balance", f.balance, "nonce", f.nonce, "price", f.price)
 
 			balance := new(big.Int).Div(f.balance, ether)
-
 			for _, conn := range f.conns {
 				if err := send(conn, map[string]interface{}{
 					"funds":    balance,
 					"funded":   f.nonce,
 					"requests": f.reqs,
+					"payout":   f.payout,
 					"target":   f.account.Address.Hex(),
 				}, time.Second); err != nil {
 					log.Warn("Failed to send stats to client", "err", err)

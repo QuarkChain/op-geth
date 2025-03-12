@@ -90,7 +90,6 @@
 				</tr></tbody></table>
 			</div>
 			<div class="mb-6" style="margin-top: 32px;">
-				<h2 class="text-l font-bold">History</h2>
 				<div class="col-lg-6 col-lg-offset-3">					
 					<div class="panel panel-small panel-default">
 						<div class="panel-body" style="padding: 0; overflow: auto; max-height: 300px;">
@@ -106,7 +105,6 @@
         let web3;
         let userAccount;
 
-		var attempt = 0;
 		var server;
 		var requests = [];
         var target;
@@ -116,6 +114,8 @@
         const swapForm = document.getElementById('swapForm');
         const ethAmount = document.getElementById('ethAmount');
         const qkcAmount = document.getElementById('qkcAmount');
+        const faucetStatus = document.getElementById('faucetStatus');
+        const swapStatus = document.getElementById('swapStatus');
 
         connectWalletBtn.addEventListener('click', async () => {
             try {
@@ -134,10 +134,9 @@
 
         faucetForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const fStatus = document.getElementById('faucetStatus');
-            fStatus.classList.remove('hidden');
-            fStatus.textContent = 'Processing...';
-            fStatus.className = 'mt-4 text-center text-yellow-400';
+            faucetStatus.classList.remove('hidden');
+            faucetStatus.textContent = 'Processing...';
+            faucetStatus.className = 'mt-4 text-center text-yellow-400';
             server.send(JSON.stringify({address: userAccount}));
         });
 
@@ -149,23 +148,20 @@
         swapForm.addEventListener('submit', async (e) => {
             e.preventDefault();
 			const amount = document.getElementById('ethAmount').value;
-			const status = document.getElementById('swapStatus');
-            status.classList.remove('hidden');
+            swapStatus.classList.remove('hidden');
 			
 			if (amount !== undefined && amount < 0.01) {
-				status.textContent = 'The minimum SepoliaETH we support is 0.01.';
-				status.className = 'mt-4 text-center text-red-400';
+                swapStatus.textContent = 'The minimum SepoliaETH we support is 0.01.';
+                swapStatus.className = 'mt-4 text-center text-red-400';
 			} else {
-				status.textContent = 'Swapping...';
-				status.className = 'mt-4 text-center text-yellow-400';
-				
+                swapStatus.textContent = 'Swapping...';
+                swapStatus.className = 'mt-4 text-center text-yellow-400';
+
 				const web3 = new Web3(window.ethereum);
-                var val = web3.utils.toWei(amount, "ether")
-                var vs = web3.utils.toHex(val)
 				const transactionParameters = {
 					from: userAccount, 
 					to: target,
-					value: vs,
+					value: web3.utils.toHex(web3.utils.toWei(amount, "ether")),
 					gas: "21000",  
 				};
 				
@@ -174,13 +170,13 @@
 						method: "eth_sendTransaction",
 						params: [transactionParameters],
 					});
-			
-					status.textContent = 'Transaction succeed, transaction hash: ' + txHash;
-					status.className = 'mt-4 text-center text-green-400';
+
+                    swapStatus.textContent = 'Transaction succeed, transaction hash: ' + txHash;
+                    swapStatus.className = 'mt-4 text-center text-green-400';
 					server.send(JSON.stringify({hash: txHash}));
 				} catch (error) {
-					status.textContent = 'transaction fail' + error.message;
-					status.className = 'mt-4 text-center text-red-400';
+                    swapStatus.textContent = 'transaction fail' + error.message;
+                    swapStatus.className = 'mt-4 text-center text-red-400';
 				}
 			}
         });
@@ -195,13 +191,9 @@
 				}
 			}
 		};
-		
-		var submit = function() {
-			server.send(JSON.stringify({address: $("#walletAddress")[0].value}));
-		};
-		
+
 		var reconnect = function() {
-			server = new WebSocket("ws://127.0.0.1:81/api");
+			server = new WebSocket("ws://65.109.90.160:81/api");
             // server = new WebSocket("wss://faucet.beta.testnet.l2.quarkchain.io:81/api");
 
 			server.onmessage = function(event) {
@@ -226,23 +218,31 @@
                     if (msg.source === "") {
                         noty({layout: 'topCenter', text: msg.error, type: 'error', timeout: 5000, progressBar: true});
                     } else {
-                        let status = document.getElementById('faucetStatus');
+                        let status = faucetStatus;
                         if (msg.source === "swap") {
-                            status = document.getElementById('swapStatus');
+                            status = swapStatus;
                         }
 
                         status.textContent = msg.error;
                         status.className = 'mt-4 text-center text-red-400';
+
+                        setTimeout(() => {
+                            status.textContent = "";
+                        }, 30000);
                     }
 
 				}
 				if (msg.success !== undefined) {
-                    let status = document.getElementById('faucetStatus');
+                    let status = faucetStatus;
                     if (msg.source === "swap") {
-                        status = document.getElementById('swapStatus');
+                        status = swapStatus;
                     }
 					status.textContent = msg.success;
 					status.className = 'mt-4 text-center text-green-400';
+
+                    setTimeout(() => {
+                        status.textContent = "";
+                    }, 30000);
 				}
 				if (msg.requests !== undefined && msg.requests !== null) {
 					for (var i=0; i<requests.length; i++) {
@@ -297,7 +297,7 @@
 					$("#requests").html("<tbody>" + content + "</tbody>");
 				}
 			}
-			server.onclose = function() { setTimeout(reconnect, 3000); };
+			server.onclose = function() { setTimeout(reconnect, 5000); };
 		}
 		
 		setInterval(function() {
