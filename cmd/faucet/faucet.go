@@ -289,16 +289,17 @@ func (f *faucet) apiHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		var resp string
 		var source string
+		var infos map[string]string
 		if err = conn.ReadJSON(&msg); err != nil {
 			return
 		}
 
 		if msg.Address != "" {
 			source = "faucet"
-			resp, err = f.faucet(common.HexToAddress(msg.Address))
+			resp, infos, err = f.faucet(common.HexToAddress(msg.Address))
 		} else {
 			source = "swap"
-			resp, err = f.checkSwapTX(common.HexToHash(msg.Hash))
+			resp, infos, err = f.checkSwapTX(common.HexToHash(msg.Hash))
 		}
 
 		if err != nil {
@@ -308,7 +309,7 @@ func (f *faucet) apiHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			continue
 		}
-		if err = sendSuccess(wsconn, source, resp); err != nil {
+		if err = sendSuccess(wsconn, source, resp, infos); err != nil {
 			log.Warn("Failed to send funding success to client", "err", err)
 			return
 		}
@@ -320,7 +321,8 @@ func (f *faucet) apiHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (f *faucet) checkSwapTX(hash common.Hash) (string, error) {
+func (f *faucet) checkSwapTX(hash common.Hash) (string, map[string]string, error) {
+	data := make(map[string]string)
 	timeout := time.Now().Add(1 * time.Minute)
 	for !time.Now().After(timeout) {
 		bs, err := f.db.Get(hash.Bytes())
@@ -329,20 +331,23 @@ func (f *faucet) checkSwapTX(hash common.Hash) (string, error) {
 			continue
 		}
 		l2TxHash := common.BytesToHash(bs)
-		return fmt.Sprintf("Assign tx related to Sepolia tx %s has submitted to L2 with hash %s", hash.Hex(), l2TxHash.Hex()), nil
+		data["l2TxHash"] = l2TxHash.String()
+		data["sepTxHash"] = hash.Hex()
+		return "Swap tokens sent! Check your wallet address.", data, nil
 	}
 
-	return "", fmt.Errorf("do not found assign tx from L2 related to %s tx in Sepolia within 1 minute", hash.Hex())
+	return "", data, fmt.Errorf("do not found assign tx from L2 related to %s tx in Sepolia within 1 minute", hash.Hex())
 }
 
-func (f *faucet) faucet(address common.Address) (string, error) {
+func (f *faucet) faucet(address common.Address) (string, map[string]string, error) {
 	var (
-		id = address.Hex()
+		id   = address.Hex()
+		data = make(map[string]string)
 	)
 
 	err := checkEthMainnetBalance(f.ethClient, address)
 	if err != nil {
-		return "", err
+		return "", data, err
 	}
 	log.Info("Faucet request valid", "address", address)
 
@@ -357,7 +362,7 @@ func (f *faucet) faucet(address common.Address) (string, error) {
 		amount := new(big.Int).Mul(big.NewInt(int64(*payoutFlag)), ether)
 		signed, err := f.sendTX(address, amount)
 		if err != nil {
-			return "", err
+			return "", data, err
 		}
 
 		f.reqs = append(f.reqs, &request{
@@ -370,10 +375,12 @@ func (f *faucet) faucet(address common.Address) (string, error) {
 		grace := timeout / 288 // 24h timeout => 5m grace
 
 		f.timeouts[id] = time.Now().Add(timeout - grace)
-		return fmt.Sprintf("Funding request accepted for into %s", address.Hex()), nil
+		data["l2TxHash"] = signed.Hash().Hex()
+		data["address"] = address.Hex()
+		return "Faucet tokens sent! Check your wallet address.", data, nil
 	}
 
-	return "", fmt.Errorf("%s left until next allowance", common.PrettyDuration(time.Until(timeout)))
+	return "", data, fmt.Errorf("%s left until next allowance", common.PrettyDuration(time.Until(timeout)))
 }
 
 func (f *faucet) swap(to common.Address, val *big.Int) (common.Hash, error) {
@@ -645,8 +652,13 @@ func sendError(conn *wsConn, source string, err error) error {
 
 // sendSuccess transmits a success message to the remote end of the websocket, also
 // setting the write deadline to 1 second to prevent waiting forever.
-func sendSuccess(conn *wsConn, source string, msg string) error {
-	return send(conn, map[string]string{"success": msg, "source": source}, time.Second)
+func sendSuccess(conn *wsConn, source string, msg string, infos map[string]string) error {
+	data := map[string]string{"success": msg, "source": source}
+	for k, v := range infos {
+		data[k] = v
+	}
+
+	return send(conn, data, time.Second)
 }
 
 // checkEthMainnetBalance tries to interpret a faucet request as a plain Ethereum address,
