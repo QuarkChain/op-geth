@@ -188,7 +188,7 @@
                 swapStatus.className = 'mt-6';
                 swapStatus.innerHTML = 'Your testnet tokens are on the way! This may take a few moments.';
                 swapStatus.innerHTML += '<div class="mt-2">Sepolia TX Hash:</div>';
-                swapStatus.innerHTML += '<div class="text-blue-500"><a href="https://sepolia.etherscan.io/tx/' + txHash + '">' + txHash + '</a></div>';
+                swapStatus.innerHTML += '<div class="text-blue-500"><a href="https://sepolia.etherscan.io/tx/' + txHash + '" target="_blank">' + txHash + '</a></div>';
                 server.send(JSON.stringify({hash: txHash}));
             } catch (error) {
                 swapStatus.textContent = 'transaction fail' + error.message;
@@ -252,9 +252,9 @@
                     faucetStatus.className = 'mt-6';
                     let html = msg.success;
                     html += '<div class="mt-2">Your Address:</div>';
-                    html += '<div class="text-blue-500"><a href="https://explorer.beta.testnet.l2.quarkchain.io/address/' + msg.address + '">' + msg.address + '</a></div>';
+                    html += '<div class="text-blue-500"><a href="https://explorer.beta.testnet.l2.quarkchain.io/address/' + msg.address + '" target="_blank">' + msg.address + '</a></div>';
                     html += '<div class="mt-2">SWC TX Hash:</div>';
-                    html += '<div class="text-blue-500"><a href="https://explorer.beta.testnet.l2.quarkchain.io/tx/' + msg.l2TxHash + '">' + msg.l2TxHash + '</a></div>';
+                    html += '<div class="text-blue-500"><a href="https://explorer.beta.testnet.l2.quarkchain.io/tx/' + msg.l2TxHash + '" target="_blank">' + msg.l2TxHash + '</a></div>';
                     faucetStatus.innerHTML = html
 
                     setTimeout(() => {
@@ -264,9 +264,9 @@
                     swapStatus.className = 'mt-6';
                     let html = msg.success;
                     html += '<div class="mt-2">Sepolia TX Hash:</div>';
-                    html += '<div class="text-blue-500"><a href="https://sepolia.etherscan.io/tx/' + msg.sepTxHash + '">' + msg.sepTxHash + '</a></div>';
+                    html += '<div class="text-blue-500"><a href="https://sepolia.etherscan.io/tx/' + msg.sepTxHash + '" target="_blank">' + msg.sepTxHash + '</a></div>';
                     html += '<div class="mt-2">SWC TX Hash:</div>';
-                    html += '<div class="text-blue-500"><a href="https://explorer.beta.testnet.l2.quarkchain.io/tx/' + msg.l2TxHash + '">' + msg.l2TxHash + '</a></div>';
+                    html += '<div class="text-blue-500"><a href="https://explorer.beta.testnet.l2.quarkchain.io/tx/' + msg.l2TxHash + '" target="_blank">' + msg.l2TxHash + '</a></div>';
                     swapStatus.innerHTML = html
 
                     setTimeout(() => {
