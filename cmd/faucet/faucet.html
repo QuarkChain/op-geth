@@ -32,8 +32,8 @@
             <div class="card bg-white rounded-xl p-6 card-glow transition-all duration-300" style="translate: none; rotate: none; scale: none; opacity: 1; transform: translate(0px, 0px);">
                 <h2 class="text-2xl font-bold mb-6">Faucet</h2>
                 <div class="mb-6">
-                    <img src="./QKC-Faucet.png" alt="QKC Token" class="w-24 h-24 mx-auto rounded-full mb-4">
-                    <p class="description text-center text-black-500 mb-4">The user's wallet must hold at least 0.01 ETH on Ethereum Mainnet to use the faucets.</p>
+                    <img src="./QKC-Faucet.png" alt="Test QKC Token" class="w-24 h-24 mx-auto rounded-full mb-4">
+                    <p class="description text-center text-black-500 mb-4">The user's wallet must hold at least 0.01 ETH on Ethereum mainnet to use the faucets.</p>
                 </div>
                 <form id="faucetForm" class="space-y-4">
                     <div>
@@ -41,7 +41,7 @@
                         <input type="text" id="walletAddress" class="w-full bg-white bg-opacity-10 rounded-lg p-3 border border-gray-600 focus:border-blue-500 focus:outline-none" placeholder="Enter your wallet address">
                     </div>
                     <button id="claimButton" type="submit" class="w-full text-white bg-green-600 hover:bg-green-700 py-3 rounded-lg transition-all duration-300">
-                        Claim QKC
+                        Claim Test QKC
                     </button>
                 </form>
                 <div id="faucetStatus" class="mt-6 hidden"></div>
@@ -49,14 +49,14 @@
 
             <!-- Swap Card -->
             <div class="card bg-white rounded-xl p-6 card-glow transition-all duration-300" style="translate: none; rotate: none; scale: none; opacity: 1; transform: translate(0px, 0px);">
-                <h2 class="text-2xl font-bold mb-6">Swap SepoliaETH to QKC</h2>
+                <h2 class="text-2xl font-bold mb-6">Swap SepoliaETH to Test QKC</h2>
                 <div class="mb-6">
                     <img src="./ETH-to-QKC.png" alt="ETH Token" class="w-42 h-24 mx-auto rounded-full mb-4">
-                    <p class="description text-center text-black-500 mb-4">Use SepoliaEth on the Sepolia to swap QKC on the SWC (1 SepoliaEth = 10,000 QKC). The minimum exchange amount is 100 QKC.</p>
+                    <p class="description text-center text-black-500 mb-4">Use SepoliaEth on the Sepolia to swap Test QKC on the SWC (1 SepoliaEth = 10,000 Test QKC). The minimum exchange amount is 100 Test QKC.</p>
                 </div>
                 <form id="swapForm" class="space-y-4">
                     <div>
-                        <label class="block text-1 font-medium mb-2">ETH Amount</label>
+                        <label class="block text-1 font-medium mb-2">SepoliaETH Amount</label>
                         <input type="number" id="ethAmount" class="w-full bg-white bg-opacity-10 rounded-lg p-3 border border-gray-600 focus:border-blue-500 focus:outline-none" placeholder="Enter ETH amount" step="0.001">
                     </div>
                     <div class="flex items-center justify-center my-4">
@@ -65,7 +65,7 @@
                         </svg>
                     </div>
                     <div>
-                        <label class="block text-1 font-medium mb-2">QKC Amount</label>
+                        <label class="block text-1 font-medium mb-2">Test QKC Amount</label>
                         <input type="number" id="qkcAmount" class="w-full bg-white bg-opacity-10 rounded-lg p-3 border border-gray-600" readonly="">
                     </div>
                     <button id="swapButton" type="submit" class="w-full bg-blue-600 text-white hover:bg-blue-700 py-3 rounded-lg transition-all duration-300">
@@ -81,7 +81,7 @@
             <div class="panel-footer">
                 <table style="width: 100%"><tbody><tr>
                     <td class="text-center"><i class="fa fa-database" aria-hidden="true"></i> <span id="block">0</span> blocks</td>
-                    <td class="text-center"><i class="fa fa-heartbeat" aria-hidden="true"></i> <span id="funds">0</span> QKCs</td>
+                    <td class="text-center"><i class="fa fa-heartbeat" aria-hidden="true"></i> <span id="funds">0</span>Test QKCs</td>
                     <td class="text-center"><i class="fa fa-university" aria-hidden="true"></i> <span id="funded">0</span> funded</td>
                 </tr></tbody></table>
             </div>
@@ -169,7 +169,7 @@
             faucetStatus.classList.remove('hidden');
             account = document.getElementById('walletAddress').value
             if (!web3.utils.isAddress(account)) {
-                faucetStatus.textContent = 'Please specify your address to claim QKC token.';
+                faucetStatus.textContent = 'Please specify your address to claim Test QKC token.';
                 faucetStatus.className = 'mt-4 text-center text-red-400';
             } else {
                 faucetStatus.textContent = 'Processing...';
