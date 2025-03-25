@@ -231,6 +231,8 @@ type ValidationOptionsWithState struct {
 
 	// L1CostFn is an optional extension, to validate L1 rollup costs of a tx
 	L1CostFn L1CostFunc
+
+	TargetHeight uint64
 }
 
 // ValidateTransactionWithState is a helper method to check whether a transaction
@@ -257,7 +259,7 @@ func ValidateTransactionWithState(tx *types.Transaction, signer types.Signer, op
 		}
 	}
 	// Ensure the transactor has enough funds to cover the transaction costs
-	balance, err := core.GetEffectiveGasBalance(opts.State, opts.Chainconfig, from, tx.Value())
+	balance, err := core.GetEffectiveGasBalance(opts.State, opts.Chainconfig, from, tx.Value(), opts.TargetHeight)
 	if err != nil {
 		return fmt.Errorf("%w: balance %v, tx value %v", err, balance, tx.Value())
 	}

@@ -73,7 +73,7 @@ func Estimate(ctx context.Context, call *core.Message, opts *Options, gasCap uin
 	}
 	// Recap the highest gas limit with account's available balance.
 	if feeCap.BitLen() != 0 {
-		balance, err := core.GetEffectiveGasBalance(opts.State, opts.Config, call.From, call.Value)
+		balance, err := core.GetEffectiveGasBalance(opts.State, opts.Config, call.From, call.Value, opts.Header.Number.Uint64())
 		if err != nil {
 			return 0, nil, err
 		}

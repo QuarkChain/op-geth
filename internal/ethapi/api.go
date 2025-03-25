@@ -356,7 +356,7 @@ func (api *BlockChainAPI) GetBalance(ctx context.Context, address common.Address
 		b := state.GetBalance(address).ToBig()
 		return (*hexutil.Big)(b), state.Error()
 	}
-	nativeBalance, sgtBalance := core.GetGasBalancesInBig(state, api.b.ChainConfig(), address)
+	nativeBalance, sgtBalance := core.GetGasBalancesInBig(state, api.b.ChainConfig(), address, header.Number.Uint64())
 	return (*hexutil.Big)(new(big.Int).Add(nativeBalance, sgtBalance)), state.Error()
 }
 
