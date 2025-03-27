@@ -402,7 +402,7 @@ type OptimismConfig struct {
 	EIP1559DenominatorCanyon *uint64 `json:"eip1559DenominatorCanyon,omitempty"`
 	// Flag for when to activate SoulGasToken for gas fee.
 	SoulGasTokenBlock *uint64 `json:"soulGasTokenBlock"`
-	// Whether SoulGasToken is backed by native token or minted by whitelisted miners, only effective when UseSoulGasToken is non-nil
+	// Whether SoulGasToken is backed by native token or minted by whitelisted miners, only effective when SoulGasTokenBlock is non-nil
 	IsSoulBackedByNative bool `json:"isSoulBackedByNative"`
 }
 
