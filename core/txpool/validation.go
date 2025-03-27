@@ -232,6 +232,7 @@ type ValidationOptionsWithState struct {
 	// L1CostFn is an optional extension, to validate L1 rollup costs of a tx
 	L1CostFn L1CostFunc
 
+	// TargetHeight is the height of the block the transaction is expected to be included in
 	TargetHeight uint64
 }
 
