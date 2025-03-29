@@ -376,8 +376,8 @@ func (st *stateTransition) GetSoulBalance(account common.Address) *uint256.Int {
 }
 
 // Get the effective balance to pay gas
-func GetEffectiveGasBalance(state vm.StateDB, chainconfig *params.ChainConfig, account common.Address, value *big.Int) (*big.Int, error) {
-	bal, sgtBal := GetGasBalancesInBig(state, chainconfig, account)
+func GetEffectiveGasBalance(state vm.StateDB, chainconfig *params.ChainConfig, account common.Address, value *big.Int, targetHeight uint64) (*big.Int, error) {
+	bal, sgtBal := GetGasBalancesInBig(state, chainconfig, account, targetHeight)
 	if value == nil {
 		value = big.NewInt(0)
 	}
@@ -392,9 +392,9 @@ func GetEffectiveGasBalance(state vm.StateDB, chainconfig *params.ChainConfig, a
 	return bal, nil
 }
 
-func GetGasBalances(state vm.StateDB, chainconfig *params.ChainConfig, account common.Address) (*uint256.Int, *uint256.Int) {
+func GetGasBalances(state vm.StateDB, chainconfig *params.ChainConfig, account common.Address, targetHeight uint64) (*uint256.Int, *uint256.Int) {
 	balance := state.GetBalance(account).Clone()
-	if chainconfig != nil && chainconfig.IsOptimism() && chainconfig.Optimism.UseSoulGasToken {
+	if chainconfig != nil && chainconfig.IsOptimism() && chainconfig.Optimism.IsSoulGasToken(targetHeight) {
 		sgtBalanceSlot := TargetSGTBalanceSlot(account)
 		sgtBalanceValue := state.GetState(types.SoulGasTokenAddr, sgtBalanceSlot)
 		sgtBalance := new(uint256.Int).SetBytes(sgtBalanceValue[:])
@@ -405,8 +405,8 @@ func GetGasBalances(state vm.StateDB, chainconfig *params.ChainConfig, account c
 	return balance, uint256.NewInt(0)
 }
 
-func GetGasBalancesInBig(state vm.StateDB, chainconfig *params.ChainConfig, account common.Address) (*big.Int, *big.Int) {
-	bal, sgtBal := GetGasBalances(state, chainconfig, account)
+func GetGasBalancesInBig(state vm.StateDB, chainconfig *params.ChainConfig, account common.Address, targetHeight uint64) (*big.Int, *big.Int) {
+	bal, sgtBal := GetGasBalances(state, chainconfig, account, targetHeight)
 	return bal.ToBig(), sgtBal.ToBig()
 }
 
@@ -478,7 +478,7 @@ func (st *stateTransition) buyGas() error {
 
 	nativeBalance := st.state.GetBalance(st.msg.From)
 	var soulBalance *uint256.Int
-	if st.evm.ChainConfig().IsOptimism() && st.evm.ChainConfig().Optimism.UseSoulGasToken {
+	if st.evm.ChainConfig().IsOptimism() && st.evm.ChainConfig().Optimism.IsSoulGasToken(st.evm.Context.BlockNumber.Uint64()) {
 		if have, want := nativeBalance.ToBig(), st.msg.Value; have.Cmp(want) < 0 {
 			return fmt.Errorf("%w: address %v have native balance %v want %v", ErrInsufficientFunds, st.msg.From.Hex(), have, want)
 		}

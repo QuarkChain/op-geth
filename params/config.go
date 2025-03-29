@@ -400,15 +400,19 @@ type OptimismConfig struct {
 	EIP1559Elasticity        uint64  `json:"eip1559Elasticity"`
 	EIP1559Denominator       uint64  `json:"eip1559Denominator"`
 	EIP1559DenominatorCanyon *uint64 `json:"eip1559DenominatorCanyon,omitempty"`
-	// Flag for whether using SoulGasToken for gas fee.
-	UseSoulGasToken bool `json:"useSoulGasToken"`
-	// Whether SoulGasToken is backed by native token or minted by whitelisted miners, only effective when UseSoulGasToken is true
+	// Flag for when to activate SoulGasToken for gas fee.
+	SoulGasTokenBlock *uint64 `json:"soulGasTokenBlock"`
+	// Whether SoulGasToken is backed by native token or minted by whitelisted miners, only effective when SoulGasTokenBlock is non-nil
 	IsSoulBackedByNative bool `json:"isSoulBackedByNative"`
 }
 
 // String implements the stringer interface, returning the optimism fee config details.
 func (o *OptimismConfig) String() string {
 	return "optimism"
+}
+
+func (o *OptimismConfig) IsSoulGasToken(targetHeight uint64) bool {
+	return o.SoulGasTokenBlock != nil && *o.SoulGasTokenBlock <= targetHeight
 }
 
 // Description returns a human-readable description of ChainConfig.
@@ -514,7 +518,7 @@ func (c *ChainConfig) Description() string {
 	}
 	banner += "\n"
 	if c.Optimism != nil {
-		banner += fmt.Sprintf("SGT: %t, Back by native %t", c.Optimism.UseSoulGasToken, c.Optimism.IsSoulBackedByNative)
+		banner += fmt.Sprintf("SGT: %t, Back by native %t", c.Optimism.SoulGasTokenBlock, c.Optimism.IsSoulBackedByNative)
 	}
 	return banner
 }

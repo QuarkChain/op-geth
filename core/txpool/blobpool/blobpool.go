@@ -675,7 +675,7 @@ func (p *BlobPool) recheck(addr common.Address, inclusions map[common.Hash]uint6
 	}
 	// Ensure that there's no over-draft, this is expected to happen when some
 	// transactions get included without publishing on the network
-	balance, sgtBalance := core.GetGasBalances(p.state, p.chain.Config(), addr)
+	balance, sgtBalance := core.GetGasBalances(p.state, p.chain.Config(), addr, p.head.Number.Uint64()+1)
 	// TODO: we may need a better filter such as tx.value < acc.balance
 	balance = balance.Add(balance, sgtBalance)
 	spent := p.spent[addr]
@@ -1130,6 +1130,7 @@ func (p *BlobPool) validateTx(tx *types.Transaction) error {
 			}
 			return nil
 		},
+		TargetHeight: p.head.Number.Uint64() + 1,
 	}
 	if err := txpool.ValidateTransactionWithState(tx, p.signer, stateOpts); err != nil {
 		return err

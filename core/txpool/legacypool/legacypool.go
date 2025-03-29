@@ -705,7 +705,8 @@ func (pool *LegacyPool) validateTx(tx *types.Transaction) error {
 			}
 			return nil
 		},
-		L1CostFn: pool.l1CostFn,
+		L1CostFn:     pool.l1CostFn,
+		TargetHeight: pool.currentHead.Load().Number.Uint64() + 1,
 	}
 	if err := txpool.ValidateTransactionWithState(tx, pool.signer, opts); err != nil {
 		return err
@@ -1540,7 +1541,7 @@ func (pool *LegacyPool) promoteExecutables(accounts []common.Address) []*types.T
 			pool.all.Remove(hash)
 		}
 		log.Trace("Removed old queued transactions", "count", len(forwards))
-		balance, sgtBalance := core.GetGasBalances(pool.currentState, pool.chainconfig, addr)
+		balance, sgtBalance := core.GetGasBalances(pool.currentState, pool.chainconfig, addr, pool.currentHead.Load().Number.Uint64()+1)
 		// TODO: we may need a better filter such as tx.value < acc.balance
 		balance = balance.Add(balance, sgtBalance)
 		balance = pool.reduceBalanceByL1Cost(list, balance)
@@ -1745,7 +1746,7 @@ func (pool *LegacyPool) demoteUnexecutables() {
 			pool.all.Remove(hash)
 			log.Trace("Removed old pending transaction", "hash", hash)
 		}
-		balance, sgtBalance := core.GetGasBalances(pool.currentState, pool.chainconfig, addr)
+		balance, sgtBalance := core.GetGasBalances(pool.currentState, pool.chainconfig, addr, pool.currentHead.Load().Number.Uint64()+1)
 		// TODO: we may need a better filter such as tx.value < acc.balance
 		balance = balance.Add(balance, sgtBalance)
 		balance = pool.reduceBalanceByL1Cost(list, balance)
