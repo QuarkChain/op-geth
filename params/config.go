@@ -518,7 +518,11 @@ func (c *ChainConfig) Description() string {
 	}
 	banner += "\n"
 	if c.Optimism != nil {
-		banner += fmt.Sprintf("SGT: %t, Back by native %t", c.Optimism.SoulGasTokenBlock, c.Optimism.IsSoulBackedByNative)
+		if c.Optimism.SoulGasTokenBlock == nil {
+			banner += "SGT: false"
+		} else {
+			banner += fmt.Sprintf("SGT: @%-10v, Back by native %t", *c.Optimism.SoulGasTokenBlock, c.Optimism.IsSoulBackedByNative)
+		}
 	}
 	return banner
 }
