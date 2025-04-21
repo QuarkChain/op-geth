@@ -354,6 +354,8 @@ type ChainConfig struct {
 
 	InteropTime *uint64 `json:"interopTime,omitempty"` // Interop switch time (nil = no fork, 0 = already on optimism interop)
 
+	L2BlobTime *uint64 `json:"l2BlobTime,omitempty"` // L2Blob switch time (nil = no fork, 0 = already on optimism l2blob)
+
 	// TerminalTotalDifficulty is the amount of total difficulty reached by
 	// the network that triggers the consensus upgrade.
 	TerminalTotalDifficulty *big.Int `json:"terminalTotalDifficulty,omitempty"`
@@ -399,6 +401,10 @@ type OptimismConfig struct {
 	EIP1559Elasticity        uint64  `json:"eip1559Elasticity"`
 	EIP1559Denominator       uint64  `json:"eip1559Denominator"`
 	EIP1559DenominatorCanyon *uint64 `json:"eip1559DenominatorCanyon,omitempty"`
+	// Flag for when to activate SoulGasToken for gas fee.
+	SoulGasTokenBlock *uint64 `json:"soulGasTokenBlock"`
+	// Whether SoulGasToken is backed by native token or minted by whitelisted miners, only effective when SoulGasTokenBlock is non-nil
+	IsSoulBackedByNative bool `json:"isSoulBackedByNative"`
 }
 
 // String implements the stringer interface, returning the optimism fee config details.
