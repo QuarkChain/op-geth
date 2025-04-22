@@ -5,7 +5,7 @@ footer: |
 base:
   name: official op-geth
   url: https://github.com/ethereum-optimism/op-geth
-  hash: b84907bf4d9577c429208165653ab1566c45c53d
+  hash: 9111c8f18ce514916105252f4530782e2ac2b598
 fork:
   name: SWC op-geth
   url: https://github.com/ethstorage/op-geth
