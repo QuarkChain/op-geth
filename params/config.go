@@ -987,6 +987,13 @@ func (bc *BlobConfig) validate() error {
 	return nil
 }
 
+func uint64ptr2Big(ptr *uint64) *big.Int {
+	if ptr == nil {
+		return nil
+	}
+	return new(big.Int).SetUint64(*ptr)
+}
+
 func (c *ChainConfig) checkCompatible(newcfg *ChainConfig, headNumber *big.Int, headTimestamp uint64, genesisTimestamp *uint64) *ConfigCompatError {
 	if isForkBlockIncompatible(c.HomesteadBlock, newcfg.HomesteadBlock, headNumber) {
 		return newBlockCompatError("Homestead fork block", c.HomesteadBlock, newcfg.HomesteadBlock)
@@ -1042,6 +1049,13 @@ func (c *ChainConfig) checkCompatible(newcfg *ChainConfig, headNumber *big.Int, 
 	}
 	if isForkBlockIncompatible(c.MergeNetsplitBlock, newcfg.MergeNetsplitBlock, headNumber) {
 		return newBlockCompatError("Merge netsplit fork block", c.MergeNetsplitBlock, newcfg.MergeNetsplitBlock)
+	}
+	if c.Optimism != nil && newcfg.Optimism != nil {
+		oldBlock := uint64ptr2Big(c.Optimism.SoulGasTokenBlock)
+		newBlock := uint64ptr2Big(newcfg.Optimism.SoulGasTokenBlock)
+		if isForkBlockIncompatible(oldBlock, newBlock, headNumber) {
+			return newBlockCompatError("SoulGasToken fork block", oldBlock, newBlock)
+		}
 	}
 	if isForkTimestampIncompatible(c.ShanghaiTime, newcfg.ShanghaiTime, headTimestamp, genesisTimestamp) {
 		return newTimestampCompatError("Shanghai fork timestamp", c.ShanghaiTime, newcfg.ShanghaiTime)
