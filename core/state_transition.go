@@ -262,6 +262,7 @@ type stateTransition struct {
 	tipFee      *uint256.Int
 	baseFee     *uint256.Int
 	l1Fee       *uint256.Int
+	operatorFee *uint256.Int
 }
 
 // newStateTransition initialises and returns a new state transition object.
@@ -279,7 +280,8 @@ func (st *stateTransition) checkGasFormula() error {
 		new(uint256.Int).Add(
 			st.refundedGas, new(uint256.Int).Add(
 				st.tipFee, new(uint256.Int).Add(
-					st.baseFee, st.l1Fee)))) != 0 {
+					st.baseFee,
+					new(uint256.Int).Add(st.l1Fee, st.operatorFee))))) != 0 {
 		return fmt.Errorf("gas formula doesn't hold: boughtGas(%v) != refundedGas(%v) + tipFee(%v) + baseFee(%v) + l1Fee(%v)", st.boughtGas, st.refundedGas, st.tipFee, st.baseFee, st.l1Fee)
 	}
 	return nil
@@ -923,23 +925,26 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 				amtU256 = st.collectableNativeBalance(amtU256)
 				st.state.AddBalance(params.OptimismL1FeeRecipient, amtU256, tracing.BalanceIncreaseRewardTransactionFee)
 			}
-<<<<<<< HEAD
 
-			if shouldCheckGasFormula {
-				if st.l1Fee == nil {
-					st.l1Fee = new(uint256.Int)
-				}
-				if err := st.checkGasFormula(); err != nil {
-					return nil, err
-				}
-=======
 			if rules.IsOptimismIsthmus {
 				// Operator Fee refunds are only applied if Isthmus is active and the transaction is *not* a deposit.
 				st.refundIsthmusOperatorCost()
 
 				operatorFeeCost := st.evm.Context.OperatorCostFunc(st.gasUsed(), st.evm.Context.Time)
+				st.operatorFee = operatorFeeCost.Clone()
 				st.state.AddBalance(params.OptimismOperatorFeeRecipient, operatorFeeCost, tracing.BalanceIncreaseRewardTransactionFee)
->>>>>>> v1.101503.4
+			}
+
+			if shouldCheckGasFormula {
+				if st.l1Fee == nil {
+					st.l1Fee = new(uint256.Int)
+				}
+				if st.operatorFee == nil {
+					st.operatorFee = new(uint256.Int)
+				}
+				if err := st.checkGasFormula(); err != nil {
+					return nil, err
+				}
 			}
 		}
 
@@ -1067,7 +1072,9 @@ func (st *stateTransition) refundIsthmusOperatorCost() {
 		panic(fmt.Sprintf("operator cost gas used (%d) > operator cost gas limit (%d)", operatorCostGasUsed, operatorCostGasLimit))
 	}
 
-	st.state.AddBalance(st.msg.From, new(uint256.Int).Sub(operatorCostGasLimit, operatorCostGasUsed), tracing.BalanceIncreaseGasReturn)
+	refundedOperatorCost := new(uint256.Int).Sub(operatorCostGasLimit, operatorCostGasUsed)
+	st.refundedGas = new(uint256.Int).Add(st.refundedGas, refundedOperatorCost.Clone())
+	st.state.AddBalance(st.msg.From, refundedOperatorCost, tracing.BalanceIncreaseGasReturn)
 }
 
 // gasUsed returns the amount of gas used up by the state transition.

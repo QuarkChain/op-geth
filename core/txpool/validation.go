@@ -250,16 +250,10 @@ type ValidationOptionsWithState struct {
 	// transaction's cost with the given nonce to check for overdrafts.
 	ExistingCost func(addr common.Address, nonce uint64) *big.Int
 
-<<<<<<< HEAD
-	// L1CostFn is an optional extension, to validate L1 rollup costs of a tx
-	L1CostFn L1CostFunc
-
-	// TargetHeight is the height of the block the transaction is expected to be included in
-	TargetHeight uint64
-=======
 	// RollupCostFn is an optional extension, to validate total rollup costs of a tx
 	RollupCostFn RollupCostFunc
->>>>>>> v1.101503.4
+	// TargetHeight is the height of the block the transaction is expected to be included in
+	TargetHeight uint64
 }
 
 // ValidateTransactionWithState is a helper method to check whether a transaction
@@ -286,25 +280,13 @@ func ValidateTransactionWithState(tx *types.Transaction, signer types.Signer, op
 		}
 	}
 	// Ensure the transactor has enough funds to cover the transaction costs
-<<<<<<< HEAD
 	balance, err := core.GetEffectiveGasBalance(opts.State, opts.Chainconfig, from, tx.Value(), opts.TargetHeight)
 	if err != nil {
 		return fmt.Errorf("%w: balance %v, tx value %v", err, balance, tx.Value())
 	}
-	cost := tx.GasCost()
-
-	if opts.L1CostFn != nil {
-		if l1Cost := opts.L1CostFn(tx.RollupCostData()); l1Cost != nil { // add rollup cost
-			cost = cost.Add(cost, l1Cost)
-		}
-=======
-	var (
-		balance           = opts.State.GetBalance(from).ToBig()
-		cost256, overflow = TotalTxCost(tx, opts.RollupCostFn)
-	)
+	cost256, overflow := TotalTxCost(tx, opts.RollupCostFn)
 	if overflow {
 		return fmt.Errorf("%w: total tx cost overflow", core.ErrInsufficientFunds)
->>>>>>> v1.101503.4
 	}
 	cost := cost256.ToBig()
 	if balance.Cmp(cost) < 0 {

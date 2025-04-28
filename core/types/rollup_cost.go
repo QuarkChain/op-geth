@@ -127,14 +127,10 @@ type TotalRollupCostFunc func(tx RollupTransaction, blockTime uint64) *uint256.I
 // receipts.
 type l1CostFunc func(rcd RollupCostData) (fee, gasUsed *big.Int)
 
-<<<<<<< HEAD
-func NewRollupCostData(data []byte, blobs int) (out RollupCostData) {
-=======
 // operatorCostFunc is an internal version of OperatorCostFunc that is used for caching.
 type operatorCostFunc func(gasUsed uint64) *uint256.Int
 
-func NewRollupCostData(data []byte) (out RollupCostData) {
->>>>>>> v1.101503.4
+func NewRollupCostData(data []byte, blobs int) (out RollupCostData) {
 	for _, b := range data {
 		if b == 0 {
 			out.Zeroes++

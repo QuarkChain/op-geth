@@ -669,12 +669,8 @@ func (pool *LegacyPool) validateTx(tx *types.Transaction) error {
 			}
 			return nil
 		},
-<<<<<<< HEAD
-		L1CostFn:     pool.l1CostFn,
-		TargetHeight: pool.currentHead.Load().Number.Uint64() + 1,
-=======
 		RollupCostFn: pool.rollupCostFn,
->>>>>>> v1.101503.4
+		TargetHeight: pool.currentHead.Load().Number.Uint64() + 1,
 	}
 	if err := txpool.ValidateTransactionWithState(tx, pool.signer, opts); err != nil {
 		return err
@@ -1495,14 +1491,9 @@ func (pool *LegacyPool) promoteExecutables(accounts []common.Address) []*types.T
 			pool.all.Remove(tx.Hash())
 		}
 		log.Trace("Removed old queued transactions", "count", len(forwards))
-<<<<<<< HEAD
 		balance, sgtBalance := core.GetGasBalances(pool.currentState, pool.chainconfig, addr, pool.currentHead.Load().Number.Uint64()+1)
 		// TODO: we may need a better filter such as tx.value < acc.balance
 		balance = balance.Add(balance, sgtBalance)
-		balance = pool.reduceBalanceByL1Cost(list, balance)
-=======
-		balance := pool.currentState.GetBalance(addr)
->>>>>>> v1.101503.4
 		// Drop all transactions that are too costly (low balance or out of gas)
 		drops, _ := list.Filter(balance, gasLimit)
 		for _, tx := range drops {
@@ -1691,14 +1682,10 @@ func (pool *LegacyPool) demoteUnexecutables() {
 			pool.all.Remove(hash)
 			log.Trace("Removed old pending transaction", "hash", hash)
 		}
-<<<<<<< HEAD
 		balance, sgtBalance := core.GetGasBalances(pool.currentState, pool.chainconfig, addr, pool.currentHead.Load().Number.Uint64()+1)
 		// TODO: we may need a better filter such as tx.value < acc.balance
 		balance = balance.Add(balance, sgtBalance)
-		balance = pool.reduceBalanceByL1Cost(list, balance)
-=======
-		balance := pool.currentState.GetBalance(addr)
->>>>>>> v1.101503.4
+
 		// Drop all transactions that are too costly (low balance or out of gas), and queue any invalids back for later
 		drops, invalids := list.Filter(balance, gasLimit)
 		for _, tx := range drops {
