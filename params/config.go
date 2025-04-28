@@ -1088,6 +1088,9 @@ func (c *ChainConfig) checkCompatible(newcfg *ChainConfig, headNumber *big.Int, 
 	if isForkTimestampIncompatible(c.InteropTime, newcfg.InteropTime, headTimestamp, genesisTimestamp) {
 		return newTimestampCompatError("Interop fork timestamp", c.InteropTime, newcfg.InteropTime)
 	}
+	if isForkTimestampIncompatible(c.L2BlobTime, newcfg.L2BlobTime, headTimestamp, genesisTimestamp) {
+		return newTimestampCompatError("L2Blob fork timestamp", c.L2BlobTime, newcfg.L2BlobTime)
+	}
 	return nil
 }
 
