@@ -719,6 +719,7 @@ func (api *BlockChainAPI) GetBlockReceipts(ctx context.Context, blockNrOrHash rp
 type ChainContextBackend interface {
 	Engine() consensus.Engine
 	HeaderByNumber(context.Context, rpc.BlockNumber) (*types.Header, error)
+	ChainConfig() *params.ChainConfig
 }
 
 // ChainContext is an implementation of core.ChainContext. It's main use-case
@@ -745,6 +746,10 @@ func (context *ChainContext) GetHeader(hash common.Hash, number uint64) *types.H
 		return nil
 	}
 	return header
+}
+
+func (context *ChainContext) Config() *params.ChainConfig {
+	return context.b.ChainConfig()
 }
 
 func doCall(ctx context.Context, b Backend, args TransactionArgs, state *state.StateDB, header *types.Header, overrides *override.StateOverride, blockOverrides *override.BlockOverrides, timeout time.Duration, globalGasCap uint64) (*core.ExecutionResult, error) {
@@ -884,7 +889,7 @@ func (api *BlockChainAPI) Call(ctx context.Context, args TransactionArgs, blockN
 //
 // Note, this function doesn't make any changes in the state/blockchain and is
 // useful to execute and retrieve values.
-func (api *BlockChainAPI) SimulateV1(ctx context.Context, opts simOpts, blockNrOrHash *rpc.BlockNumberOrHash) ([]map[string]interface{}, error) {
+func (api *BlockChainAPI) SimulateV1(ctx context.Context, opts simOpts, blockNrOrHash *rpc.BlockNumberOrHash) ([]*simBlockResult, error) {
 	if len(opts.BlockStateCalls) == 0 {
 		return nil, &invalidParamsError{message: "empty input"}
 	} else if len(opts.BlockStateCalls) > maxSimulateBlocks {
@@ -1036,7 +1041,7 @@ func RPCMarshalHeader(head *types.Header) map[string]interface{} {
 // RPCMarshalBlock converts the given block to the RPC output which depends on fullTx. If inclTx is true transactions are
 // returned. When fullTx is true the returned block contains full transaction details, otherwise it will only contain
 // transaction hashes.
-func RPCMarshalBlock(ctx context.Context, block *types.Block, inclTx bool, fullTx bool, config *params.ChainConfig, backend Backend) (map[string]interface{}, error) {
+func RPCMarshalBlock(ctx context.Context, block *types.Block, inclTx bool, fullTx bool, config *params.ChainConfig, backend ReceiptGetter) (map[string]interface{}, error) {
 	fields := RPCMarshalHeader(block.Header())
 	fields["size"] = hexutil.Uint64(block.Size())
 
@@ -1242,7 +1247,7 @@ func NewRPCPendingTransaction(tx *types.Transaction, current *types.Header, conf
 }
 
 // newRPCTransactionFromBlockIndex returns a transaction that will serialize to the RPC representation.
-func newRPCTransactionFromBlockIndex(ctx context.Context, b *types.Block, index uint64, config *params.ChainConfig, backend Backend) *RPCTransaction {
+func newRPCTransactionFromBlockIndex(ctx context.Context, b *types.Block, index uint64, config *params.ChainConfig, backend ReceiptGetter) *RPCTransaction {
 	txs := b.Transactions()
 	if index >= uint64(len(txs)) {
 		return nil
@@ -1252,7 +1257,11 @@ func newRPCTransactionFromBlockIndex(ctx context.Context, b *types.Block, index 
 	return newRPCTransaction(tx, b.Hash(), b.NumberU64(), b.Time(), index, b.BaseFee(), config, rcpt)
 }
 
-func depositTxReceipt(ctx context.Context, blockHash common.Hash, index uint64, backend Backend, tx *types.Transaction) *types.Receipt {
+type ReceiptGetter interface {
+	GetReceipts(ctx context.Context, hash common.Hash) (types.Receipts, error)
+}
+
+func depositTxReceipt(ctx context.Context, blockHash common.Hash, index uint64, backend ReceiptGetter, tx *types.Transaction) *types.Receipt {
 	if tx.Type() != types.DepositTxType {
 		return nil
 	}
@@ -1287,7 +1296,7 @@ type accessListResult struct {
 
 // CreateAccessList creates an EIP-2930 type AccessList for the given transaction.
 // Reexec and BlockNrOrHash can be specified to create the accessList on top of a certain state.
-func (api *BlockChainAPI) CreateAccessList(ctx context.Context, args TransactionArgs, state *state.StateDB, blockNrOrHash *rpc.BlockNumberOrHash) (*accessListResult, error) {
+func (api *BlockChainAPI) CreateAccessList(ctx context.Context, args TransactionArgs, blockNrOrHash *rpc.BlockNumberOrHash) (*accessListResult, error) {
 	bNrOrHash := rpc.BlockNumberOrHashWithNumber(rpc.LatestBlockNumber)
 	if blockNrOrHash != nil {
 		bNrOrHash = *blockNrOrHash
@@ -1307,7 +1316,7 @@ func (api *BlockChainAPI) CreateAccessList(ctx context.Context, args Transaction
 		}
 	}
 
-	acl, gasUsed, vmerr, err := AccessList(ctx, api.b, bNrOrHash, args, state)
+	acl, gasUsed, vmerr, err := AccessList(ctx, api.b, bNrOrHash, args)
 	if err != nil {
 		return nil, err
 	}
@@ -1321,12 +1330,13 @@ func (api *BlockChainAPI) CreateAccessList(ctx context.Context, args Transaction
 // AccessList creates an access list for the given transaction.
 // If the accesslist creation fails an error is returned.
 // If the transaction itself fails, an vmErr is returned.
-func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrHash, args TransactionArgs, state *state.StateDB) (acl types.AccessList, gasUsed uint64, vmErr error, err error) {
+func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrHash, args TransactionArgs) (acl types.AccessList, gasUsed uint64, vmErr error, err error) {
 	// Retrieve the execution context
 	db, header, err := b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
 	if db == nil || err != nil {
 		return nil, 0, nil, err
 	}
+	state := db
 
 	// Ensure any missing fields are filled, extract the recipient and input data
 	if err = args.setFeeDefaults(ctx, b, header); err != nil {
@@ -1599,6 +1609,13 @@ func marshalReceipt(receipt *types.Receipt, blockHash common.Hash, blockNumber u
 		}
 		if receipt.L1BlobBaseFeeScalar != nil {
 			fields["l1BlobBaseFeeScalar"] = hexutil.Uint64(*receipt.L1BlobBaseFeeScalar)
+		}
+		// Fields added in Isthmus
+		if receipt.OperatorFeeScalar != nil {
+			fields["operatorFeeScalar"] = hexutil.Uint64(*receipt.OperatorFeeScalar)
+		}
+		if receipt.OperatorFeeConstant != nil {
+			fields["operatorFeeConstant"] = hexutil.Uint64(*receipt.OperatorFeeConstant)
 		}
 	}
 	if chainConfig.Optimism != nil && tx.IsDepositTx() && receipt.DepositNonce != nil {
@@ -1910,7 +1927,7 @@ func (api *DebugAPI) GetRawHeader(ctx context.Context, blockNrOrHash rpc.BlockNu
 		hash = h
 	} else {
 		block, err := api.b.BlockByNumberOrHash(ctx, blockNrOrHash)
-		if err != nil {
+		if block == nil || err != nil {
 			return nil, err
 		}
 		hash = block.Hash()
@@ -1929,7 +1946,7 @@ func (api *DebugAPI) GetRawBlock(ctx context.Context, blockNrOrHash rpc.BlockNum
 		hash = h
 	} else {
 		block, err := api.b.BlockByNumberOrHash(ctx, blockNrOrHash)
-		if err != nil {
+		if block == nil || err != nil {
 			return nil, err
 		}
 		hash = block.Hash()
@@ -1948,7 +1965,7 @@ func (api *DebugAPI) GetRawReceipts(ctx context.Context, blockNrOrHash rpc.Block
 		hash = h
 	} else {
 		block, err := api.b.BlockByNumberOrHash(ctx, blockNrOrHash)
-		if err != nil {
+		if block == nil || err != nil {
 			return nil, err
 		}
 		hash = block.Hash()
