@@ -276,13 +276,13 @@ func newStateTransition(evm *vm.EVM, msg *Message, gp *GasPool) *stateTransition
 }
 
 func (st *stateTransition) checkGasFormula() error {
-	if st.boughtGas.Cmp(
-		new(uint256.Int).Add(
-			st.refundedGas, new(uint256.Int).Add(
-				st.tipFee, new(uint256.Int).Add(
-					st.baseFee,
-					new(uint256.Int).Add(st.l1Fee, st.operatorFee))))) != 0 {
-		return fmt.Errorf("gas formula doesn't hold: boughtGas(%v) != refundedGas(%v) + tipFee(%v) + baseFee(%v) + l1Fee(%v)", st.boughtGas, st.refundedGas, st.tipFee, st.baseFee, st.l1Fee)
+	sumGas := new(uint256.Int).Add(
+		st.refundedGas, new(uint256.Int).Add(
+			st.tipFee, new(uint256.Int).Add(
+				st.baseFee,
+				new(uint256.Int).Add(st.l1Fee, st.operatorFee))))
+	if st.boughtGas.Cmp(sumGas) != 0 {
+		return fmt.Errorf("gas formula doesn't hold: boughtGas(%v) != sumGas(%v) [refundedGas(%v) + tipFee(%v) + baseFee(%v) + l1Fee(%v) + operatorFee(%v)], BaseFee:%v BlobBaseFee:%v", sumGas, st.boughtGas, st.refundedGas, st.tipFee, st.baseFee, st.l1Fee, st.operatorFee, st.evm.Context.BaseFee, st.evm.Context.BlobBaseFee)
 	}
 	return nil
 }
@@ -873,14 +873,12 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 	}
 	effectiveTipU256, _ := uint256.FromBig(effectiveTip)
 
-	shouldCheckGasFormula := true
 	if st.evm.Config.NoBaseFee && msg.GasFeeCap.Sign() == 0 && msg.GasTipCap.Sign() == 0 {
 		// Skip fee payment when NoBaseFee is set and the fee fields
 		// are 0. This avoids a negative effectiveTip being applied to
 		// the coinbase when simulating calls.
-		shouldCheckGasFormula = false
 	} else {
-
+		shouldCheckGasFormula := !st.msg.SkipNonceChecks && !st.msg.SkipFromEOACheck
 		fee := new(uint256.Int).SetUint64(st.gasUsed())
 		fee.Mul(fee, effectiveTipU256)
 
