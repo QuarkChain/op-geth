@@ -385,11 +385,7 @@ func GetEffectiveGasBalance(state vm.StateDB, chainconfig *params.ChainConfig, a
 		return nil, ErrInsufficientFundsForTransfer
 	}
 	bal.Sub(bal, value)
-	if bal.Cmp(sgtBal) < 0 {
-		return sgtBal, nil
-	}
-
-	return bal, nil
+	return new(big.Int).Add(bal, sgtBal), nil
 }
 
 func GetGasBalances(state vm.StateDB, chainconfig *params.ChainConfig, account common.Address, targetHeight uint64) (*uint256.Int, *uint256.Int) {
