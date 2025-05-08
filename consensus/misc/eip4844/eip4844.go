@@ -91,6 +91,9 @@ func CalcBlobFee(config *params.ChainConfig, header *types.Header) *big.Int {
 	// 	return minBlobGasPrice
 	// }
 
+	if config.BlobScheduleConfig == nil {
+		config.BlobScheduleConfig = params.DefaultBlobSchedule
+	}
 	var frac uint64
 	switch config.LatestFork(header.Time) {
 	case forks.Osaka:
