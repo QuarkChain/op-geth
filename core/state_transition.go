@@ -257,12 +257,17 @@ type stateTransition struct {
 	usedNativeBalance *uint256.Int
 
 	// these are set once for checking gas formula only
-	boughtGas   *uint256.Int
-	refundedGas *uint256.Int
-	tipFee      *uint256.Int
-	baseFee     *uint256.Int
-	l1Fee       *uint256.Int
-	operatorFee *uint256.Int
+	boughtGas               *uint256.Int
+	boughtGasLimitXGasPrice *uint256.Int
+	boughtBlobFee           *uint256.Int
+	boughtL1Fee             *uint256.Int
+	boughtOperatorFee       *uint256.Int
+	refundedGas             *uint256.Int
+	refundedOperatorFee     *uint256.Int
+	tipFee                  *uint256.Int
+	baseFee                 *uint256.Int
+	l1Fee                   *uint256.Int
+	operatorFee             *uint256.Int
 }
 
 // newStateTransition initialises and returns a new state transition object.
@@ -276,13 +281,22 @@ func newStateTransition(evm *vm.EVM, msg *Message, gp *GasPool) *stateTransition
 }
 
 func (st *stateTransition) checkGasFormula() error {
+	if st.boughtGas.Cmp(
+		new(uint256.Int).Add(
+			new(uint256.Int).Add(st.boughtL1Fee, st.boughtOperatorFee),
+			new(uint256.Int).Add(st.boughtGasLimitXGasPrice, st.boughtBlobFee))) != 0 {
+		return fmt.Errorf("gas formula doesn't hold: boughtGas(%v) != boughtGasLimitXGasPrice(%v) + boughtBlobFee(%v) + boughtL1Fee(%v) + boughtOperatorFee(%v)", st.boughtGas, st.boughtGasLimitXGasPrice, st.boughtBlobFee, st.boughtL1Fee, st.boughtOperatorFee)
+	}
 	sumGas := new(uint256.Int).Add(
 		st.refundedGas, new(uint256.Int).Add(
 			st.tipFee, new(uint256.Int).Add(
 				st.baseFee,
-				new(uint256.Int).Add(st.l1Fee, st.operatorFee))))
+				new(uint256.Int).Add(
+					new(uint256.Int).Add(
+						st.l1Fee, st.operatorFee),
+					st.refundedOperatorFee))))
 	if st.boughtGas.Cmp(sumGas) != 0 {
-		return fmt.Errorf("gas formula doesn't hold: boughtGas(%v) != sumGas(%v) [refundedGas(%v) + tipFee(%v) + baseFee(%v) + l1Fee(%v) + operatorFee(%v)], BaseFee:%v BlobBaseFee:%v", sumGas, st.boughtGas, st.refundedGas, st.tipFee, st.baseFee, st.l1Fee, st.operatorFee, st.evm.Context.BaseFee, st.evm.Context.BlobBaseFee)
+		return fmt.Errorf("gas formula doesn't hold: boughtGas(%v) != sumGas(%v) [boughtGas = boughtGasLimitXGasPrice(%v) + boughtBlobFee(%v) + boughtL1Fee(%v) + boughtOperatorFee(%v),sumGas = refundedGas(%v) + refundedOperatorFee(%v) + tipFee(%v) + baseFee(%v) + l1Fee(%v) + operatorFee(%v)], BaseFee:%v BlobBaseFee:%v GasLimit:%v GasUsed:%v GasPrice:%v GasFeeCap:%v GasTipCap:%v", sumGas, st.boughtGas, st.boughtGasLimitXGasPrice, st.boughtBlobFee, st.boughtL1Fee, st.boughtOperatorFee, st.refundedGas, st.refundedOperatorFee, st.tipFee, st.baseFee, st.l1Fee, st.operatorFee, st.evm.Context.BaseFee, st.evm.Context.BlobBaseFee, st.initialGas, st.gasUsed(), st.msg.GasPrice, st.msg.GasFeeCap, st.msg.GasTipCap)
 	}
 	return nil
 }
@@ -451,17 +465,22 @@ func (st *stateTransition) addSoulBalance(account common.Address, amount *uint25
 func (st *stateTransition) buyGas() error {
 	mgval := new(big.Int).SetUint64(st.msg.GasLimit)
 	mgval.Mul(mgval, st.msg.GasPrice)
+	st.boughtGasLimitXGasPrice, _ = uint256.FromBig(mgval)
+	st.boughtL1Fee = new(uint256.Int)
+	st.boughtOperatorFee = new(uint256.Int)
 	var l1Cost *big.Int
 	var operatorCost *uint256.Int
 	if !st.msg.SkipNonceChecks && !st.msg.SkipFromEOACheck {
 		if st.evm.Context.L1CostFunc != nil {
 			l1Cost = st.evm.Context.L1CostFunc(st.msg.RollupCostData, st.evm.Context.Time)
 			if l1Cost != nil {
+				st.boughtL1Fee, _ = uint256.FromBig(l1Cost)
 				mgval = mgval.Add(mgval, l1Cost)
 			}
 		}
 		if st.evm.Context.OperatorCostFunc != nil {
 			operatorCost = st.evm.Context.OperatorCostFunc(st.msg.GasLimit, st.evm.Context.Time)
+			st.boughtOperatorFee = operatorCost.Clone()
 			mgval = mgval.Add(mgval, operatorCost.ToBig())
 		}
 	}
@@ -478,6 +497,7 @@ func (st *stateTransition) buyGas() error {
 	}
 	balanceCheck.Add(balanceCheck, st.msg.Value)
 
+	st.boughtBlobFee = new(uint256.Int)
 	if st.evm.ChainConfig().IsCancun(st.evm.Context.BlockNumber, st.evm.Context.Time) {
 		if blobGas := st.blobGasUsed(); blobGas > 0 {
 			// Check that the user has enough funds to cover blobGasUsed * tx.BlobGasFeeCap
@@ -487,6 +507,7 @@ func (st *stateTransition) buyGas() error {
 			// Pay for blobGasUsed * actual blob fee
 			blobFee := new(big.Int).SetUint64(blobGas)
 			blobFee.Mul(blobFee, st.evm.Context.BlobBaseFee)
+			st.boughtBlobFee, _ = uint256.FromBig(blobFee)
 			mgval.Add(mgval, blobFee)
 		}
 	}
@@ -940,6 +961,9 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 				if st.operatorFee == nil {
 					st.operatorFee = new(uint256.Int)
 				}
+				if st.refundedOperatorFee == nil {
+					st.refundedOperatorFee = new(uint256.Int)
+				}
 				if err := st.checkGasFormula(); err != nil {
 					return nil, err
 				}
@@ -1071,7 +1095,7 @@ func (st *stateTransition) refundIsthmusOperatorCost() {
 	}
 
 	refundedOperatorCost := new(uint256.Int).Sub(operatorCostGasLimit, operatorCostGasUsed)
-	st.refundedGas = new(uint256.Int).Add(st.refundedGas, refundedOperatorCost.Clone())
+	st.refundedOperatorFee = refundedOperatorCost.Clone()
 	st.state.AddBalance(st.msg.From, refundedOperatorCost, tracing.BalanceIncreaseGasReturn)
 }
 
