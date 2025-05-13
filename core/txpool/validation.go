@@ -290,7 +290,7 @@ func ValidateTransactionWithState(tx *types.Transaction, signer types.Signer, op
 	}
 	cost := cost256.ToBig()
 	// we want to compare with effective gas balance here
-	cost = new(big.Int).Sub(cost, tx.Value())
+	balance = new(big.Int).Add(balance, tx.Value())
 	if balance.Cmp(cost) < 0 {
 		return fmt.Errorf("%w: balance %v, tx cost %v, overshot %v", core.ErrInsufficientFunds, balance, cost, new(big.Int).Sub(cost, balance))
 	}
