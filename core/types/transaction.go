@@ -384,15 +384,6 @@ func (tx *Transaction) Cost() *big.Int {
 	return total
 }
 
-// Cost returns (gas * gasPrice) + (blobGas * blobGasPrice).
-func (tx *Transaction) GasCost() *big.Int {
-	total := new(big.Int).Mul(tx.GasPrice(), new(big.Int).SetUint64(tx.Gas()))
-	if tx.Type() == BlobTxType {
-		total.Add(total, new(big.Int).Mul(tx.BlobGasFeeCap(), new(big.Int).SetUint64(tx.BlobGas())))
-	}
-	return total
-}
-
 // RollupCostData caches the information needed to efficiently compute the data availability fee
 func (tx *Transaction) RollupCostData() RollupCostData {
 	if tx.Type() == DepositTxType {
@@ -608,6 +599,21 @@ func (tx *Transaction) SetCodeAuthorizations() []SetCodeAuthorization {
 		return nil
 	}
 	return setcodetx.AuthList
+}
+
+// SetCodeAuthorities returns a list of each authorization's corresponding authority.
+func (tx *Transaction) SetCodeAuthorities() []common.Address {
+	setcodetx, ok := tx.inner.(*SetCodeTx)
+	if !ok {
+		return nil
+	}
+	auths := make([]common.Address, 0, len(setcodetx.AuthList))
+	for _, auth := range setcodetx.AuthList {
+		if addr, err := auth.Authority(); err == nil {
+			auths = append(auths, addr)
+		}
+	}
+	return auths
 }
 
 // SetTime sets the decoding time of a transaction. Used by the sequencer API to
