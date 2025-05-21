@@ -5,7 +5,7 @@ footer: |
 base:
   name: official op-geth
   url: https://github.com/ethereum-optimism/op-geth
-  hash: 9111c8f18ce514916105252f4530782e2ac2b598
+  hash: 2b9abb39077cb88f6e8a513f09a5ea2c2569dfed
 fork:
   name: SWC op-geth
   url: https://github.com/ethstorage/op-geth
@@ -58,6 +58,7 @@ def:
         - "params/protocol_params.go"
         - "beacon/engine/types.go"
         - "core/types/rollup_cost.go"
+        - "consensus/misc/eip4844/eip4844.go"
     - title: "Custom Gas Token modification"
       description: |
         As we're using the QKC token (which is an ERC20 token) on L1 as the gas token, the `RPCTxFeeCap` is changed from 1 to 1000.
