@@ -1072,6 +1072,9 @@ func (st *stateTransition) returnGas() {
 	st.gp.AddGas(st.gasRemaining)
 }
 
+// refundGas refunds a specified amount of gas to user.
+// the priority for refund is: first native, then SGT.
+// it's called by both returnGas and refundIsthmusOperatorCost.
 func (st *stateTransition) refundGas(amount *uint256.Int) {
 	if st.usedSGTBalance == nil {
 		st.state.AddBalance(st.msg.From, amount, tracing.BalanceIncreaseGasReturn)
