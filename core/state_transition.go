@@ -317,7 +317,9 @@ func (st *stateTransition) collectableNativeBalance(amount *uint256.Int) *uint25
 //		split amount among two pools, first pool1, then pool2, where poolx means max amount for pool x.
 //		quotax is the amount distributed to pool x.
 //
-// note: the returned values are always non-nil.
+// note:
+//  1. the returned values are always non-nil.
+//  2. pool1 and pool2 are updated in-place if they are non-nil.
 func (st *stateTransition) distributeGas(amount, pool1, pool2 *uint256.Int) (quota1, quota2 *uint256.Int) {
 	if amount == nil {
 		panic("amount should not be nil")
@@ -1059,18 +1061,7 @@ func (st *stateTransition) returnGas() {
 	remaining := uint256.NewInt(st.gasRemaining)
 	remaining.Mul(remaining, uint256.MustFromBig(st.msg.GasPrice))
 	st.refundedGas = remaining.Clone()
-	if st.usedSGTBalance == nil {
-		st.state.AddBalance(st.msg.From, remaining, tracing.BalanceIncreaseGasReturn)
-	} else {
-		native, sgt := st.distributeGas(remaining, st.usedNativeBalance, st.usedSGTBalance)
-		if native.Sign() > 0 {
-			st.state.AddBalance(st.msg.From, remaining, tracing.BalanceIncreaseGasReturn)
-		}
-		if sgt.Sign() > 0 {
-			st.addSoulBalance(st.msg.From, sgt, tracing.BalanceIncreaseGasReturn)
-			st.usedSGTBalance.Sub(st.usedSGTBalance, sgt)
-		}
-	}
+	st.refundGas(remaining)
 
 	if st.evm.Config.Tracer != nil && st.evm.Config.Tracer.OnGasChange != nil && st.gasRemaining > 0 {
 		st.evm.Config.Tracer.OnGasChange(st.gasRemaining, 0, tracing.GasChangeTxLeftOverReturned)
@@ -1079,6 +1070,23 @@ func (st *stateTransition) returnGas() {
 	// Also return remaining gas to the block gas counter so it is
 	// available for the next transaction.
 	st.gp.AddGas(st.gasRemaining)
+}
+
+// refundGas refunds a specified amount of gas to user.
+// the priority for refund is: first native, then SGT.
+// it's called by both returnGas and refundIsthmusOperatorCost.
+func (st *stateTransition) refundGas(amount *uint256.Int) {
+	if st.usedSGTBalance == nil {
+		st.state.AddBalance(st.msg.From, amount, tracing.BalanceIncreaseGasReturn)
+	} else {
+		native, sgt := st.distributeGas(amount, st.usedNativeBalance, st.usedSGTBalance)
+		if native.Sign() > 0 {
+			st.state.AddBalance(st.msg.From, native, tracing.BalanceIncreaseGasReturn)
+		}
+		if sgt.Sign() > 0 {
+			st.addSoulBalance(st.msg.From, sgt, tracing.BalanceIncreaseGasReturn)
+		}
+	}
 }
 
 func (st *stateTransition) refundIsthmusOperatorCost() {
@@ -1092,7 +1100,7 @@ func (st *stateTransition) refundIsthmusOperatorCost() {
 
 	refundedOperatorCost := new(uint256.Int).Sub(operatorCostGasLimit, operatorCostGasUsed)
 	st.refundedOperatorFee = refundedOperatorCost.Clone()
-	st.state.AddBalance(st.msg.From, refundedOperatorCost, tracing.BalanceIncreaseGasReturn)
+	st.refundGas(refundedOperatorCost)
 }
 
 // gasUsed returns the amount of gas used up by the state transition.
