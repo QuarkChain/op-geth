@@ -1,20 +1,20 @@
 title: "SWC-op-geth - official-op-geth fork diff overview"
 footer: |
-  Fork-diff overview of [`SWC op-geth`](https://github.com/ethstorage/op-geth), a fork of [`official op-geth`](https://github.com/ethereum-optimism/op-geth).
-  and execution-engine of the [SWC OP-stack](https://github.com/ethstorage/optimism).
+  Fork-diff overview of [`SWC op-geth`](https://github.com/Quarkchain/op-geth), a fork of [`official op-geth`](https://github.com/ethereum-optimism/op-geth).
+  and execution-engine of the [SWC OP-stack](https://github.com/Quarkchain/optimism).
 base:
   name: official op-geth
   url: https://github.com/ethereum-optimism/op-geth
   hash: 2b9abb39077cb88f6e8a513f09a5ea2c2569dfed
 fork:
   name: SWC op-geth
-  url: https://github.com/ethstorage/op-geth
+  url: https://github.com/Quarkchain/op-geth
   ref: refs/heads/op-es
 def:
   title: "op-geth"
   description: |
-    This is an overview of the changes in [`SWC op-geth`](https://github.com/ethstorage/op-geth),
-    a fork of [`official op-geth`](https://github.com/ethereum-optimism/op-geth), part of the [SWC OP-stack](https://github.com/ethstorage/optimism).
+    This is an overview of the changes in [`SWC op-geth`](https://github.com/Quarkchain/op-geth),
+    a fork of [`official op-geth`](https://github.com/ethereum-optimism/op-geth), part of the [SWC OP-stack](https://github.com/Quarkchain/optimism).
   sub:
     - title: "Soul Gas Token modifications"
       description: |
