@@ -55,7 +55,7 @@ func TestBedrockL1CostFunc(t *testing.T) {
 }
 
 func TestEcotoneL1CostFunc(t *testing.T) {
-	costFunc := newL1CostFuncEcotone(baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeScalar)
+	costFunc := newL1CostFuncEcotone(baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeScalar, big.NewInt(1), big.NewInt(1))
 
 	c0, g0 := costFunc(emptyTx.RollupCostData())
 
@@ -69,6 +69,8 @@ func TestFjordL1CostFuncMinimumBounds(t *testing.T) {
 		blobBaseFee,
 		baseFeeScalar,
 		blobBaseFeeScalar,
+		big.NewInt(1),
+		big.NewInt(1),
 	)
 
 	// Minimum size transactions:
@@ -106,6 +108,8 @@ func TestFjordL1CostSolidityParity(t *testing.T) {
 		big.NewInt(3*1e6),
 		big.NewInt(20),
 		big.NewInt(15),
+		big.NewInt(1),
+		big.NewInt(1),
 	)
 
 	c0, g0 := costFunc(RollupCostData{
