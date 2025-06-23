@@ -499,10 +499,19 @@ func (o *OptimismConfig) IsSoulGasToken(targetHeight uint64) bool {
 	return o.SoulGasTokenBlock != nil && *o.SoulGasTokenBlock <= targetHeight
 }
 
+// this flag is only true in test
+var L1ScalarMultipliersTestFlag bool
+var L1ScalarMultipliersCalled bool
+
 // L1ScalarMultipliers returns the scalar multipliers to make the L1BaseFeeScalar and L1BlobBaseFeeScalar compatible with uint32.
 // It needs to be applied for all future changes to the L1 cost.
 func (o *OptimismConfig) L1ScalarMultipliers(blockTime uint64) (*big.Int, *big.Int) {
 	// blockTime is not used in the current implementation, but it is kept here for future compatibility
+
+	// this code block is only used for test
+	if L1ScalarMultipliersTestFlag && !L1ScalarMultipliersCalled {
+		L1ScalarMultipliersCalled = true
+	}
 
 	// default values for the scalar multipliers
 	l1BaseFeeScalarMultiplier := int64(1)

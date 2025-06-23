@@ -7,6 +7,8 @@ import (
 	"math/big"
 	"testing"
 
+	math2 "math"
+
 	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
 
@@ -357,6 +359,32 @@ func (sg *testStateGetter) GetState(addr common.Address, slot common.Hash) commo
 		panic("unknown slot")
 	}
 	return buf
+}
+
+// This test checks that the L1 scalar multipliers are used in NewL1CostFunc
+// for latest HF, but still need to manually check the usage in extractL1GasParams.
+// it's best-effort only.
+func TestL1ScalarMultipliersAreUsedInLatestHF(t *testing.T) {
+
+	// Note: may still need to manually turn on the latest HF flag if OP hasn't do that yet
+	config := params.OptimismTestConfig
+	statedb := &testStateGetter{
+		baseFee:           baseFee,
+		overhead:          overhead,
+		scalar:            scalar,
+		blobBaseFee:       blobBaseFee,
+		baseFeeScalar:     uint32(baseFeeScalar.Uint64()),
+		blobBaseFeeScalar: uint32(blobBaseFeeScalar.Uint64()),
+	}
+
+	params.L1ScalarMultipliersCalled = false
+	params.L1ScalarMultipliersTestFlag = true
+	costFunc := NewL1CostFunc(config, statedb)
+	require.NotNil(t, costFunc)
+
+	costFunc(emptyTx.RollupCostData(), math2.MaxUint64-1 /*math2.MaxUint64 is used as a special mark in NewL1CostFunc, so minus 1*/)
+
+	require.Equal(t, params.L1ScalarMultipliersCalled, true)
 }
 
 // TestNewL1CostFunc tests that the appropriate cost function is selected based on the

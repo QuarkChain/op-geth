@@ -177,9 +177,9 @@ func NewL1CostFunc(config *params.ChainConfig, statedb StateGetter) L1CostFunc {
 		}
 
 		l1BaseFeeScalar, l1BlobBaseFeeScalar := ExtractEcotoneFeeParams(l1FeeScalars)
-		l1BaseFeeScalarMultiplier, l1BlobBaseFeeScalarMultiplier := config.Optimism.L1ScalarMultipliers(blockTime)
 
 		if config.IsOptimismFjord(blockTime) {
+			l1BaseFeeScalarMultiplier, l1BlobBaseFeeScalarMultiplier := config.Optimism.L1ScalarMultipliers(blockTime)
 			return NewL1CostFuncFjord(
 				l1BaseFee,
 				l1BlobBaseFee,
