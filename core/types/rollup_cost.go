@@ -189,7 +189,7 @@ func NewL1CostFunc(config *params.ChainConfig, statedb StateGetter) L1CostFunc {
 				l1BlobBaseFeeScalarMultiplier,
 			)
 		} else {
-			return newL1CostFuncEcotone(l1BaseFee, l1BlobBaseFee, l1BaseFeeScalar, l1BlobBaseFeeScalar, l1BaseFeeScalarMultiplier, l1BlobBaseFeeScalarMultiplier)
+			return newL1CostFuncEcotone(l1BaseFee, l1BlobBaseFee, l1BaseFeeScalar, l1BlobBaseFeeScalar)
 		}
 	}
 
@@ -296,7 +296,7 @@ func newL1CostFuncBedrockHelper(l1BaseFee, overhead, scalar *big.Int, isRegolith
 
 // newL1CostFuncEcotone returns an l1 cost function suitable for the Ecotone upgrade except for the
 // very first block of the upgrade.
-func newL1CostFuncEcotone(l1BaseFee, l1BlobBaseFee, l1BaseFeeScalar, l1BlobBaseFeeScalar, l1BaseFeeScalarMultiplier, l1BlobBaseFeeScalarMultiplier *big.Int) l1CostFunc {
+func newL1CostFuncEcotone(l1BaseFee, l1BlobBaseFee, l1BaseFeeScalar, l1BlobBaseFeeScalar *big.Int) l1CostFunc {
 	return func(costData RollupCostData) (fee, calldataGasUsed *big.Int) {
 		calldataGasUsed = bedrockCalldataGasUsed(costData)
 
@@ -313,10 +313,10 @@ func newL1CostFuncEcotone(l1BaseFee, l1BlobBaseFee, l1BaseFeeScalar, l1BlobBaseF
 
 		calldataCostPerByte := new(big.Int).Set(l1BaseFee)
 		calldataCostPerByte = calldataCostPerByte.Mul(calldataCostPerByte, sixteen)
-		calldataCostPerByte = calldataCostPerByte.Mul(calldataCostPerByte, new(big.Int).Mul(l1BaseFeeScalar, l1BaseFeeScalarMultiplier))
+		calldataCostPerByte = calldataCostPerByte.Mul(calldataCostPerByte, l1BaseFeeScalar)
 
 		blobCostPerByte := new(big.Int).Set(l1BlobBaseFee)
-		blobCostPerByte = blobCostPerByte.Mul(blobCostPerByte, new(big.Int).Mul(l1BlobBaseFeeScalar, l1BlobBaseFeeScalarMultiplier))
+		blobCostPerByte = blobCostPerByte.Mul(blobCostPerByte, l1BlobBaseFeeScalar)
 
 		fee = new(big.Int).Add(calldataCostPerByte, blobCostPerByte)
 		fee = fee.Mul(fee, calldataGasUsed)
@@ -430,7 +430,6 @@ func extractL1GasParams(config *params.ChainConfig, time uint64, data []byte) (g
 				p.l1BlobBaseFee,
 				big.NewInt(int64(*p.l1BaseFeeScalar)),
 				big.NewInt(int64(*p.l1BlobBaseFeeScalar)),
-				l1BaseFeeScalarMultiplier, l1BlobBaseFeeScalarMultiplier,
 			)
 		}
 

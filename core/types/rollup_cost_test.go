@@ -55,7 +55,7 @@ func TestBedrockL1CostFunc(t *testing.T) {
 }
 
 func TestEcotoneL1CostFunc(t *testing.T) {
-	costFunc := newL1CostFuncEcotone(baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeScalar, big.NewInt(1), big.NewInt(1))
+	costFunc := newL1CostFuncEcotone(baseFee, blobBaseFee, baseFeeScalar, blobBaseFeeScalar)
 
 	c0, g0 := costFunc(emptyTx.RollupCostData())
 
