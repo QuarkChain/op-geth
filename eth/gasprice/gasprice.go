@@ -39,7 +39,7 @@ var (
 	DefaultMaxPrice    = big.NewInt(500 * params.GWei)
 	DefaultIgnorePrice = big.NewInt(2 * params.Wei)
 
-	DefaultMinSuggestedPriorityFee = big.NewInt(1e6 * params.Wei) // 0.001 gwei, for Optimism fee suggestion
+	DefaultMinSuggestedPriorityFee = big.NewInt(1e9 * params.Wei) // 1 gwei, for Optimism fee suggestion
 )
 
 type Config struct {
