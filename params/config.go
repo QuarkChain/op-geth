@@ -482,6 +482,12 @@ type OptimismConfig struct {
 	SoulGasTokenBlock *uint64 `json:"soulGasTokenBlock"`
 	// Whether SoulGasToken is backed by native token or minted by whitelisted miners, only effective when SoulGasTokenBlock is non-nil
 	IsSoulBackedByNative bool `json:"isSoulBackedByNative"`
+	// The multiplier of the L1BaseFeeScalar, used to keep the L1BaseFeeScalar size compatible with uint32 and calculate the effective L1BaseFeeScalar;
+	// Only effective when the value is non-zero
+	L1BaseFeeScalarMultiplier uint64 `json:"l1BaseFeeScalarMultiplier,omitempty"`
+	// The multiplier of the L1BlobBaseFeeScalar, used to keep the L1BlobBaseFeeScalar size compatible with uint32 and calculate the effective L1BlobBaseFeeScalar;
+	// Only effective when the value is non-zero
+	L1BlobBaseFeeScalarMultiplier uint64 `json:"l1BlobBaseFeeScalarMultiplier,omitempty"`
 }
 
 // String implements the stringer interface, returning the optimism fee config details.
@@ -491,6 +497,33 @@ func (o *OptimismConfig) String() string {
 
 func (o *OptimismConfig) IsSoulGasToken(targetHeight uint64) bool {
 	return o.SoulGasTokenBlock != nil && *o.SoulGasTokenBlock <= targetHeight
+}
+
+// this flag is only true in test
+var L1ScalarMultipliersTestFlag bool
+var L1ScalarMultipliersCalled bool
+
+// L1ScalarMultipliers returns the scalar multipliers to make the L1BaseFeeScalar and L1BlobBaseFeeScalar compatible with uint32.
+// It needs to be applied for all future changes to the L1 cost.
+func (o *OptimismConfig) L1ScalarMultipliers(blockTime uint64) (*big.Int, *big.Int) {
+	// blockTime is not used in the current implementation, but it is kept here for future compatibility
+
+	// this code block is only used for test
+	if L1ScalarMultipliersTestFlag && !L1ScalarMultipliersCalled {
+		L1ScalarMultipliersCalled = true
+	}
+
+	// default values for the scalar multipliers
+	l1BaseFeeScalarMultiplier := int64(1)
+	l1BlobBaseFeeScalarMultiplier := int64(1)
+
+	if o.L1BaseFeeScalarMultiplier != 0 {
+		l1BaseFeeScalarMultiplier = int64(o.L1BaseFeeScalarMultiplier)
+	}
+	if o.L1BlobBaseFeeScalarMultiplier != 0 {
+		l1BlobBaseFeeScalarMultiplier = int64(o.L1BlobBaseFeeScalarMultiplier)
+	}
+	return big.NewInt(l1BaseFeeScalarMultiplier), big.NewInt(l1BlobBaseFeeScalarMultiplier)
 }
 
 // Description returns a human-readable description of ChainConfig.
