@@ -327,6 +327,9 @@ func (st *stateTransition) distributeGas(amount, pool1, pool2 *uint256.Int) (quo
 	if st.usedSGTBalance == nil {
 		panic("should not happen when usedSGTBalance is nil")
 	}
+	if pool1 == nil && pool2 == nil {
+		panic("both pool1 and pool2 are nil")
+	}
 	if pool1 == nil {
 		// pool1 empty, all to pool2
 		quota1 = new(uint256.Int)
