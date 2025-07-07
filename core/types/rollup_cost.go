@@ -174,11 +174,14 @@ func NewL1CostFunc(config *params.ChainConfig, statedb StateGetter) L1CostFunc {
 		l1BaseFeeScalar, l1BlobBaseFeeScalar := ExtractEcotoneFeeParams(l1FeeScalars)
 
 		if config.IsOptimismFjord(blockTime) {
+			l1BaseFeeScalarMultiplier, l1BlobBaseFeeScalarMultiplier := config.Optimism.L1ScalarMultipliers(blockTime)
 			return NewL1CostFuncFjord(
 				l1BaseFee,
 				l1BlobBaseFee,
 				l1BaseFeeScalar,
 				l1BlobBaseFeeScalar,
+				l1BaseFeeScalarMultiplier,
+				l1BlobBaseFeeScalarMultiplier,
 			)
 		} else {
 			return newL1CostFuncEcotone(l1BaseFee, l1BlobBaseFee, l1BaseFeeScalar, l1BlobBaseFeeScalar)
@@ -378,6 +381,8 @@ func intToScaledFloat(scalar *big.Int) *big.Float {
 
 // extractL1GasParams extracts the gas parameters necessary to compute gas costs from L1 block info
 func extractL1GasParams(config *params.ChainConfig, time uint64, data []byte) (gasParams, error) {
+	l1BaseFeeScalarMultiplier, l1BlobBaseFeeScalarMultiplier := config.Optimism.L1ScalarMultipliers(time)
+
 	if config.IsIsthmus(time) && len(data) >= 4 && !bytes.Equal(data[0:4], EcotoneL1AttributesSelector) {
 		// edge case: for the very first Isthmus block we still need to use the Ecotone
 		// function. We detect this edge case by seeing if the function selector is the old one
@@ -386,11 +391,13 @@ func extractL1GasParams(config *params.ChainConfig, time uint64, data []byte) (g
 		if err != nil {
 			return gasParams{}, err
 		}
+
 		p.costFunc = NewL1CostFuncFjord(
 			p.l1BaseFee,
 			p.l1BlobBaseFee,
 			big.NewInt(int64(*p.l1BaseFeeScalar)),
 			big.NewInt(int64(*p.l1BlobBaseFeeScalar)),
+			l1BaseFeeScalarMultiplier, l1BlobBaseFeeScalarMultiplier,
 		)
 		return p, nil
 	} else if config.IsEcotone(time) && len(data) >= 4 && !bytes.Equal(data[0:4], BedrockL1AttributesSelector) {
@@ -409,6 +416,7 @@ func extractL1GasParams(config *params.ChainConfig, time uint64, data []byte) (g
 				p.l1BlobBaseFee,
 				big.NewInt(int64(*p.l1BaseFeeScalar)),
 				big.NewInt(int64(*p.l1BlobBaseFeeScalar)),
+				l1BaseFeeScalarMultiplier, l1BlobBaseFeeScalarMultiplier,
 			)
 		} else {
 			p.costFunc = newL1CostFuncEcotone(
@@ -524,16 +532,16 @@ func l1CostHelper(gasWithOverhead, l1BaseFee, scalar *big.Int) *big.Int {
 }
 
 // NewL1CostFuncFjord returns an l1 cost function suitable for the Fjord upgrade
-func NewL1CostFuncFjord(l1BaseFee, l1BlobBaseFee, baseFeeScalar, blobFeeScalar *big.Int) l1CostFunc {
+func NewL1CostFuncFjord(l1BaseFee, l1BlobBaseFee, baseFeeScalar, blobFeeScalar, l1BaseFeeScalarMultiplier, l1BlobBaseFeeScalarMultiplier *big.Int) l1CostFunc {
 	return func(costData RollupCostData) (fee, calldataGasUsed *big.Int) {
 		// Fjord L1 cost function:
 		// l1FeeScaled = baseFeeScalar*l1BaseFee*16 + blobFeeScalar*l1BlobBaseFee
 		// estimatedSize = max(minTransactionSize, intercept + fastlzCoef*fastlzSize)
 		// l1Cost = estimatedSize * l1FeeScaled / 1e12
 
-		scaledL1BaseFee := new(big.Int).Mul(baseFeeScalar, l1BaseFee)
+		scaledL1BaseFee := new(big.Int).Mul(new(big.Int).Mul(baseFeeScalar, l1BaseFeeScalarMultiplier), l1BaseFee)
 		calldataCostPerByte := new(big.Int).Mul(scaledL1BaseFee, sixteen)
-		blobCostPerByte := new(big.Int).Mul(blobFeeScalar, l1BlobBaseFee)
+		blobCostPerByte := new(big.Int).Mul(new(big.Int).Mul(blobFeeScalar, l1BlobBaseFeeScalarMultiplier), l1BlobBaseFee)
 		l1FeeScaled := new(big.Int).Add(calldataCostPerByte, blobCostPerByte)
 		estimatedSize := costData.estimatedDASizeScaled()
 		l1CostScaled := new(big.Int).Mul(estimatedSize, l1FeeScaled)
