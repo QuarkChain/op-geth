@@ -479,8 +479,8 @@ type OptimismConfig struct {
 	EIP1559Denominator       uint64  `json:"eip1559Denominator"`
 	EIP1559DenominatorCanyon *uint64 `json:"eip1559DenominatorCanyon,omitempty"`
 	// Flag for when to activate SoulGasToken for gas fee.
-	SoulGasTokenBlock *uint64 `json:"soulGasTokenBlock"`
-	// Whether SoulGasToken is backed by native token or minted by whitelisted miners, only effective when SoulGasTokenBlock is non-nil
+	SoulGasTokenTime *uint64 `json:"soulGasTokenTime,omitempty"`
+	// Whether SoulGasToken is backed by native token or minted by whitelisted miners, only effective when SoulGasTokenTime is non-nil
 	IsSoulBackedByNative bool `json:"isSoulBackedByNative"`
 	// The multiplier of the L1BaseFeeScalar, used to keep the L1BaseFeeScalar size compatible with uint32 and calculate the effective L1BaseFeeScalar;
 	// Only effective when the value is non-zero
@@ -495,8 +495,8 @@ func (o *OptimismConfig) String() string {
 	return "optimism"
 }
 
-func (o *OptimismConfig) IsSoulGasToken(targetHeight uint64) bool {
-	return o.SoulGasTokenBlock != nil && *o.SoulGasTokenBlock <= targetHeight
+func (o *OptimismConfig) IsSoulGasToken(targetTime uint64) bool {
+	return o.SoulGasTokenTime != nil && *o.SoulGasTokenTime <= targetTime
 }
 
 // this flag is only true in test
@@ -635,10 +635,10 @@ func (c *ChainConfig) Description() string {
 	}
 	banner += "\n"
 	if c.Optimism != nil {
-		if c.Optimism.SoulGasTokenBlock == nil {
+		if c.Optimism.SoulGasTokenTime == nil {
 			banner += "SGT: false"
 		} else {
-			banner += fmt.Sprintf("SGT: @%-10v, Back by native %t", *c.Optimism.SoulGasTokenBlock, c.Optimism.IsSoulBackedByNative)
+			banner += fmt.Sprintf("SGT: @%-10v, Back by native %t", *c.Optimism.SoulGasTokenTime, c.Optimism.IsSoulBackedByNative)
 		}
 	}
 	return banner
@@ -1018,13 +1018,6 @@ func (bc *BlobConfig) validate() error {
 	return nil
 }
 
-func uint64ptr2Big(ptr *uint64) *big.Int {
-	if ptr == nil {
-		return nil
-	}
-	return new(big.Int).SetUint64(*ptr)
-}
-
 func (c *ChainConfig) checkCompatible(newcfg *ChainConfig, headNumber *big.Int, headTimestamp uint64, genesisTimestamp *uint64) *ConfigCompatError {
 	if isForkBlockIncompatible(c.HomesteadBlock, newcfg.HomesteadBlock, headNumber) {
 		return newBlockCompatError("Homestead fork block", c.HomesteadBlock, newcfg.HomesteadBlock)
@@ -1082,10 +1075,8 @@ func (c *ChainConfig) checkCompatible(newcfg *ChainConfig, headNumber *big.Int, 
 		return newBlockCompatError("Merge netsplit fork block", c.MergeNetsplitBlock, newcfg.MergeNetsplitBlock)
 	}
 	if c.Optimism != nil && newcfg.Optimism != nil {
-		oldBlock := uint64ptr2Big(c.Optimism.SoulGasTokenBlock)
-		newBlock := uint64ptr2Big(newcfg.Optimism.SoulGasTokenBlock)
-		if isForkBlockIncompatible(oldBlock, newBlock, headNumber) {
-			return newBlockCompatError("SoulGasToken fork block", oldBlock, newBlock)
+		if isForkTimestampIncompatible(c.Optimism.SoulGasTokenTime, newcfg.Optimism.SoulGasTokenTime, headTimestamp, genesisTimestamp) {
+			return newTimestampCompatError("SGT fork timestamp", c.Optimism.SoulGasTokenTime, newcfg.Optimism.SoulGasTokenTime)
 		}
 	}
 	if isForkTimestampIncompatible(c.ShanghaiTime, newcfg.ShanghaiTime, headTimestamp, genesisTimestamp) {
