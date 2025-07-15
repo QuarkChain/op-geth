@@ -680,7 +680,7 @@ func (p *BlobPool) recheck(addr common.Address, inclusions map[common.Hash]uint6
 	}
 	// Ensure that there's no over-draft, this is expected to happen when some
 	// transactions get included without publishing on the network
-	balance, sgtBalance := core.GetGasBalances(p.state, p.chain.Config(), addr, p.head.Time+2) // QKC TODO: use constant after introduced
+	balance, sgtBalance := core.GetGasBalances(p.state, p.chain.Config(), addr, p.head.Time+2) // QKC TODO: replace 2 with `BlockTime` after the constant is introduced
 	// TODO: we may need a better filter such as tx.value < acc.balance
 	balance = balance.Add(balance, sgtBalance)
 	spent := p.spent[addr]
@@ -1135,7 +1135,7 @@ func (p *BlobPool) validateTx(tx *types.Transaction) error {
 			}
 			return nil
 		},
-		TargetTime: p.head.Time + 2, // QKC TODO: use constant after introduced
+		TargetTime: p.head.Time + 2, // QKC TODO: replace 2 with `BlockTime` after the constant is introduced
 	}
 	if err := txpool.ValidateTransactionWithState(tx, p.signer, stateOpts); err != nil {
 		return err
