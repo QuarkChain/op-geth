@@ -252,8 +252,8 @@ type ValidationOptionsWithState struct {
 
 	// RollupCostFn is an optional extension, to validate total rollup costs of a tx
 	RollupCostFn RollupCostFunc
-	// TargetHeight is the height of the block the transaction is expected to be included in
-	TargetHeight uint64
+	// QKC diff: TargetTime is the time the transaction is expected to be included in
+	TargetTime uint64
 }
 
 // ValidateTransactionWithState is a helper method to check whether a transaction
@@ -280,7 +280,7 @@ func ValidateTransactionWithState(tx *types.Transaction, signer types.Signer, op
 		}
 	}
 	// Ensure the transactor has enough funds to cover the transaction costs
-	balance, err := core.GetEffectiveGasBalance(opts.State, opts.Chainconfig, from, tx.Value(), opts.TargetHeight)
+	balance, err := core.GetEffectiveGasBalance(opts.State, opts.Chainconfig, from, tx.Value(), opts.TargetTime)
 	if err != nil {
 		return fmt.Errorf("%w: balance %v, tx value %v", err, balance, tx.Value())
 	}

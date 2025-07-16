@@ -670,7 +670,7 @@ func (pool *LegacyPool) validateTx(tx *types.Transaction) error {
 			return nil
 		},
 		RollupCostFn: pool.rollupCostFn,
-		TargetHeight: pool.currentHead.Load().Number.Uint64() + 1,
+		TargetTime:   pool.currentHead.Load().Time + 2, // QKC TODO: replace 2 with `BlockTime` after the constant is introduced
 	}
 	if err := txpool.ValidateTransactionWithState(tx, pool.signer, opts); err != nil {
 		return err
@@ -1491,7 +1491,7 @@ func (pool *LegacyPool) promoteExecutables(accounts []common.Address) []*types.T
 			pool.all.Remove(tx.Hash())
 		}
 		log.Trace("Removed old queued transactions", "count", len(forwards))
-		balance, sgtBalance := core.GetGasBalances(pool.currentState, pool.chainconfig, addr, pool.currentHead.Load().Number.Uint64()+1)
+		balance, sgtBalance := core.GetGasBalances(pool.currentState, pool.chainconfig, addr, pool.currentHead.Load().Time+2) // QKC TODO: replace 2 with `BlockTime` after the constant is introduced
 		// TODO: we may need a better filter such as tx.value < acc.balance
 		balance = balance.Add(balance, sgtBalance)
 		// Drop all transactions that are too costly (low balance or out of gas)
@@ -1682,7 +1682,7 @@ func (pool *LegacyPool) demoteUnexecutables() {
 			pool.all.Remove(hash)
 			log.Trace("Removed old pending transaction", "hash", hash)
 		}
-		balance, sgtBalance := core.GetGasBalances(pool.currentState, pool.chainconfig, addr, pool.currentHead.Load().Number.Uint64()+1)
+		balance, sgtBalance := core.GetGasBalances(pool.currentState, pool.chainconfig, addr, pool.currentHead.Load().Time+2) // QKC TODO: replace 2 with `BlockTime` after the constant is introduced
 		// TODO: we may need a better filter such as tx.value < acc.balance
 		balance = balance.Add(balance, sgtBalance)
 
