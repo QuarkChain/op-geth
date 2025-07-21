@@ -75,7 +75,7 @@ func LatestSigner(config *params.ChainConfig) Signer {
 			signer = NewIsthmusSigner(config.ChainID)
 		case config.PragueTime != nil && !config.IsOptimism():
 			signer = NewPragueSigner(config.ChainID)
-		case config.CancunTime != nil && (!config.IsOptimism() || config.L2BlobTime != nil):
+		case config.CancunTime != nil && (!config.IsOptimism() || config.Optimism.L2BlobTime != nil):
 			signer = NewCancunSigner(config.ChainID)
 		case config.LondonBlock != nil:
 			signer = NewLondonSigner(config.ChainID)

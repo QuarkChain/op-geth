@@ -425,7 +425,6 @@ type ChainConfig struct {
 
 	InteropTime *uint64 `json:"interopTime,omitempty"` // Interop switch time (nil = no fork, 0 = already on optimism interop)
 
-	L2BlobTime *uint64 `json:"l2BlobTime,omitempty"` // L2Blob switch time (nil = no fork, 0 = already on optimism l2blob)
 	// TerminalTotalDifficulty is the amount of total difficulty reached by
 	// the network that triggers the consensus upgrade.
 	TerminalTotalDifficulty *big.Int `json:"terminalTotalDifficulty,omitempty"`
@@ -478,6 +477,7 @@ type OptimismConfig struct {
 	EIP1559Elasticity        uint64  `json:"eip1559Elasticity"`
 	EIP1559Denominator       uint64  `json:"eip1559Denominator"`
 	EIP1559DenominatorCanyon *uint64 `json:"eip1559DenominatorCanyon,omitempty"`
+	L2BlobTime               *uint64 `json:"l2BlobTime,omitempty"` // L2Blob switch time (nil = no fork, 0 = already on optimism l2blob)
 	// Flag for when to activate SoulGasToken for gas fee.
 	SoulGasTokenTime *uint64 `json:"soulGasTokenTime,omitempty"`
 	// Whether SoulGasToken is backed by native token or minted by whitelisted miners, only effective when SoulGasTokenTime is non-nil
@@ -630,11 +630,11 @@ func (c *ChainConfig) Description() string {
 	if c.InteropTime != nil {
 		banner += fmt.Sprintf(" - Interop:                     @%-10v\n", *c.InteropTime)
 	}
-	if c.L2BlobTime != nil {
-		banner += fmt.Sprintf(" - L2BLob:                     @%-10v\n", *c.L2BlobTime)
-	}
 	banner += "\n"
 	if c.Optimism != nil {
+		if c.Optimism.L2BlobTime != nil {
+			banner += fmt.Sprintf(" - L2BLob:                     @%-10v\n", *c.Optimism.L2BlobTime)
+		}
 		if c.Optimism.SoulGasTokenTime == nil {
 			banner += "SGT: false"
 		} else {
@@ -751,7 +751,7 @@ func (c *ChainConfig) IsCancun(num *big.Int, time uint64) bool {
 
 // IsL2Blob returns whether l2 blob is enabled
 func (c *ChainConfig) IsL2Blob(num *big.Int, time uint64) bool {
-	return c.IsCancun(num, time) && c.Optimism != nil && isTimestampForked(c.L2BlobTime, time)
+	return c.IsCancun(num, time) && c.Optimism != nil && isTimestampForked(c.Optimism.L2BlobTime, time)
 }
 
 // IsPrague returns whether time is either equal to the Prague fork time or greater.
@@ -1075,6 +1075,9 @@ func (c *ChainConfig) checkCompatible(newcfg *ChainConfig, headNumber *big.Int, 
 		return newBlockCompatError("Merge netsplit fork block", c.MergeNetsplitBlock, newcfg.MergeNetsplitBlock)
 	}
 	if c.Optimism != nil && newcfg.Optimism != nil {
+		if isForkTimestampIncompatible(c.Optimism.L2BlobTime, newcfg.Optimism.L2BlobTime, headTimestamp, genesisTimestamp) {
+			return newTimestampCompatError("L2Blob fork timestamp", c.Optimism.L2BlobTime, newcfg.Optimism.L2BlobTime)
+		}
 		if isForkTimestampIncompatible(c.Optimism.SoulGasTokenTime, newcfg.Optimism.SoulGasTokenTime, headTimestamp, genesisTimestamp) {
 			return newTimestampCompatError("SGT fork timestamp", c.Optimism.SoulGasTokenTime, newcfg.Optimism.SoulGasTokenTime)
 		}
@@ -1123,9 +1126,6 @@ func (c *ChainConfig) checkCompatible(newcfg *ChainConfig, headNumber *big.Int, 
 	}
 	if isForkTimestampIncompatible(c.InteropTime, newcfg.InteropTime, headTimestamp, genesisTimestamp) {
 		return newTimestampCompatError("Interop fork timestamp", c.InteropTime, newcfg.InteropTime)
-	}
-	if isForkTimestampIncompatible(c.L2BlobTime, newcfg.L2BlobTime, headTimestamp, genesisTimestamp) {
-		return newTimestampCompatError("L2Blob fork timestamp", c.L2BlobTime, newcfg.L2BlobTime)
 	}
 	return nil
 }
