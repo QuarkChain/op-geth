@@ -301,31 +301,29 @@ func (st *stateTransition) checkGasFormula() error {
 	return nil
 }
 
-func (st *stateTransition) collectableNativeBalance(amount *uint256.Int) *uint256.Int {
+func (st *stateTransition) getCollectableNativeBalance(amount *uint256.Int) *uint256.Int {
 	// we burn the token if gas is from SoulGasToken which is not backed by native
 	if st.usedSGTBalance != nil && st.evm.ChainConfig().IsOptimism() && !st.evm.ChainConfig().Optimism.IsSoulBackedByNative {
-		_, amount = st.distributeGas(amount, st.usedSGTBalance, st.usedNativeBalance)
+		_, amount = deductGasFrom(amount, st.usedSGTBalance, st.usedNativeBalance)
 	}
 	return amount
 }
 
-// distributeGas distributes the gas according to the priority:
+// deductGasFrom deducts the gas according to the pool priority:
 //
-//		first pool1, then pool2.
+//	first pool1, then pool2.
 //
-//	 In more detail:
-//		split amount among two pools, first pool1, then pool2, where poolx means max amount for pool x.
-//		quotax is the amount distributed to pool x.
+// To be specific:
+//   - split amount among two pools, first pool1, then pool2, where poolx means max amount for pool x.
+//   - quotax is the amount distributed to pool x.
 //
 // note:
 //  1. the returned values are always non-nil.
 //  2. pool1 and pool2 are updated in-place if they are non-nil.
-func (st *stateTransition) distributeGas(amount, pool1, pool2 *uint256.Int) (quota1, quota2 *uint256.Int) {
+//  3. panic if amount < pool1 + pool2
+func deductGasFrom(amount, pool1, pool2 *uint256.Int) (quota1, quota2 *uint256.Int) {
 	if amount == nil {
 		panic("amount should not be nil")
-	}
-	if st.usedSGTBalance == nil {
-		panic("should not happen when usedSGTBalance is nil")
 	}
 	if pool1 == nil && pool2 == nil {
 		panic("both pool1 and pool2 are nil")
@@ -336,6 +334,9 @@ func (st *stateTransition) distributeGas(amount, pool1, pool2 *uint256.Int) (quo
 		quota2 = amount.Clone()
 
 		pool2.Sub(pool2, quota2)
+		if pool2.Sign() < 0 {
+			panic("distribute gas cannot be greater than pre-bought gas")
+		}
 		return
 	}
 	if pool2 == nil {
@@ -344,6 +345,9 @@ func (st *stateTransition) distributeGas(amount, pool1, pool2 *uint256.Int) (quo
 		quota2 = new(uint256.Int)
 
 		pool1.Sub(pool1, quota1)
+		if pool1.Sign() < 0 {
+			panic("distribute gas cannot be greater than pre-bought gas")
+		}
 		return
 	}
 
@@ -356,6 +360,9 @@ func (st *stateTransition) distributeGas(amount, pool1, pool2 *uint256.Int) (quo
 
 		pool1.Clear()
 		pool2.Sub(pool2, quota2)
+		if pool2.Sign() < 0 {
+			panic("distribute gas cannot be greater than pre-bought gas")
+		}
 	} else {
 		// all to pool1
 		quota1 = amount.Clone()
@@ -404,7 +411,7 @@ func (st *stateTransition) GetSoulBalance(account common.Address) *uint256.Int {
 	return balance
 }
 
-// Get the effective balance to pay gas
+// GetEffectiveGasBalance gets the effective balance to pay gas.
 func GetEffectiveGasBalance(state vm.StateDB, chainconfig *params.ChainConfig, account common.Address, value *big.Int, targetTime uint64) (*big.Int, error) {
 	bal, sgtBal := GetGasBalancesInBig(state, chainconfig, account, targetTime)
 	if value == nil {
@@ -417,6 +424,7 @@ func GetEffectiveGasBalance(state vm.StateDB, chainconfig *params.ChainConfig, a
 	return new(big.Int).Add(bal, sgtBal), nil
 }
 
+// GetGasBalances gets the native and SGT balance of the account.  The returned values can be safely modified.
 func GetGasBalances(state vm.StateDB, chainconfig *params.ChainConfig, account common.Address, targetTime uint64) (*uint256.Int, *uint256.Int) {
 	balance := state.GetBalance(account).Clone()
 	if chainconfig != nil && chainconfig.IsOptimism() && chainconfig.Optimism.IsSoulGasToken(targetTime) {
@@ -430,6 +438,7 @@ func GetGasBalances(state vm.StateDB, chainconfig *params.ChainConfig, account c
 	return balance, uint256.NewInt(0)
 }
 
+// GetGasBalancesInBig gets the native and SGT balance of the account.  The returned values can be safely modified.
 func GetGasBalancesInBig(state vm.StateDB, chainconfig *params.ChainConfig, account common.Address, targetTime uint64) (*big.Int, *big.Int) {
 	bal, sgtBal := GetGasBalances(state, chainconfig, account, targetTime)
 	return bal.ToBig(), sgtBal.ToBig()
@@ -557,6 +566,7 @@ func (st *stateTransition) buyGas() error {
 				return err
 			}
 			st.usedSGTBalance = mgvalU256
+			// st.usedNativeBalance is nil in this case.
 		} else {
 			err := st.subSoulBalance(st.msg.From, soulBalance, tracing.BalanceDecreaseGasBuy)
 			if err != nil {
@@ -566,10 +576,11 @@ func (st *stateTransition) buyGas() error {
 			// when both SGT and native balance are used, we record both amounts for refund.
 			// the priority for refund is: first native, then SGT
 			usedNativeBalance := new(uint256.Int).Sub(mgvalU256, soulBalance)
-			if usedNativeBalance.Sign() > 0 {
-				st.state.SubBalance(st.msg.From, usedNativeBalance, tracing.BalanceDecreaseGasBuy)
-				st.usedNativeBalance = usedNativeBalance
+			if usedNativeBalance.Sign() <= 0 {
+				panic("used native balance cannot be negative")
 			}
+			st.state.SubBalance(st.msg.From, usedNativeBalance, tracing.BalanceDecreaseGasBuy)
+			st.usedNativeBalance = usedNativeBalance
 		}
 	}
 
@@ -906,7 +917,7 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 
 		st.tipFee = fee.Clone()
 
-		fee = st.collectableNativeBalance(fee)
+		fee = st.getCollectableNativeBalance(fee)
 		st.state.AddBalance(st.evm.Context.Coinbase, fee, tracing.BalanceIncreaseRewardTransactionFee)
 
 		// add the coinbase to the witness iff the fee is greater than 0
@@ -931,7 +942,7 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 				st.baseFee = amtU256.Clone()
 			}
 
-			amtU256 = st.collectableNativeBalance(amtU256)
+			amtU256 = st.getCollectableNativeBalance(amtU256)
 			st.state.AddBalance(params.OptimismBaseFeeRecipient, amtU256, tracing.BalanceIncreaseRewardTransactionFee)
 			if l1Cost := st.evm.Context.L1CostFunc(st.msg.RollupCostData, st.evm.Context.Time); l1Cost != nil {
 				amtU256, overflow = uint256.FromBig(l1Cost)
@@ -942,7 +953,7 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 					st.l1Fee = amtU256.Clone()
 				}
 
-				amtU256 = st.collectableNativeBalance(amtU256)
+				amtU256 = st.getCollectableNativeBalance(amtU256)
 				st.state.AddBalance(params.OptimismL1FeeRecipient, amtU256, tracing.BalanceIncreaseRewardTransactionFee)
 			}
 
@@ -1082,7 +1093,7 @@ func (st *stateTransition) refundGas(amount *uint256.Int) {
 	if st.usedSGTBalance == nil {
 		st.state.AddBalance(st.msg.From, amount, tracing.BalanceIncreaseGasReturn)
 	} else {
-		native, sgt := st.distributeGas(amount, st.usedNativeBalance, st.usedSGTBalance)
+		native, sgt := deductGasFrom(amount, st.usedNativeBalance, st.usedSGTBalance)
 		if native.Sign() > 0 {
 			st.state.AddBalance(st.msg.From, native, tracing.BalanceIncreaseGasReturn)
 		}
