@@ -301,7 +301,7 @@ func (st *stateTransition) checkGasFormula() error {
 	return nil
 }
 
-func (st *stateTransition) getCollectableNativeBalance(amount *uint256.Int) *uint256.Int {
+func (st *stateTransition) collectNativeBalance(amount *uint256.Int) *uint256.Int {
 	// we burn the token if gas is from SoulGasToken which is not backed by native
 	if st.usedSGTBalance != nil && st.evm.ChainConfig().IsOptimism() && !st.evm.ChainConfig().Optimism.IsSoulBackedByNative {
 		_, amount = deductGasFrom(amount, st.usedSGTBalance, st.usedNativeBalance)
@@ -315,12 +315,12 @@ func (st *stateTransition) getCollectableNativeBalance(amount *uint256.Int) *uin
 //
 // To be specific:
 //   - split amount among two pools, first pool1, then pool2, where poolx means max amount for pool x.
-//   - quotax is the amount distributed to pool x.
+//   - quotax is the amount deducted from pool x.
 //
 // note:
 //  1. the returned values are always non-nil.
 //  2. pool1 and pool2 are updated in-place if they are non-nil.
-//  3. panic if amount < pool1 + pool2
+//  3. panic if amount > pool1 + pool2
 func deductGasFrom(amount, pool1, pool2 *uint256.Int) (quota1, quota2 *uint256.Int) {
 	if amount == nil {
 		panic("amount should not be nil")
@@ -576,9 +576,6 @@ func (st *stateTransition) buyGas() error {
 			// when both SGT and native balance are used, we record both amounts for refund.
 			// the priority for refund is: first native, then SGT
 			usedNativeBalance := new(uint256.Int).Sub(mgvalU256, soulBalance)
-			if usedNativeBalance.Sign() <= 0 {
-				panic("used native balance cannot be negative")
-			}
 			st.state.SubBalance(st.msg.From, usedNativeBalance, tracing.BalanceDecreaseGasBuy)
 			st.usedNativeBalance = usedNativeBalance
 		}
@@ -917,7 +914,7 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 
 		st.tipFee = fee.Clone()
 
-		fee = st.getCollectableNativeBalance(fee)
+		fee = st.collectNativeBalance(fee)
 		st.state.AddBalance(st.evm.Context.Coinbase, fee, tracing.BalanceIncreaseRewardTransactionFee)
 
 		// add the coinbase to the witness iff the fee is greater than 0
@@ -942,7 +939,7 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 				st.baseFee = amtU256.Clone()
 			}
 
-			amtU256 = st.getCollectableNativeBalance(amtU256)
+			amtU256 = st.collectNativeBalance(amtU256)
 			st.state.AddBalance(params.OptimismBaseFeeRecipient, amtU256, tracing.BalanceIncreaseRewardTransactionFee)
 			if l1Cost := st.evm.Context.L1CostFunc(st.msg.RollupCostData, st.evm.Context.Time); l1Cost != nil {
 				amtU256, overflow = uint256.FromBig(l1Cost)
@@ -953,7 +950,7 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 					st.l1Fee = amtU256.Clone()
 				}
 
-				amtU256 = st.getCollectableNativeBalance(amtU256)
+				amtU256 = st.collectNativeBalance(amtU256)
 				st.state.AddBalance(params.OptimismL1FeeRecipient, amtU256, tracing.BalanceIncreaseRewardTransactionFee)
 			}
 
