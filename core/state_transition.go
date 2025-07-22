@@ -952,6 +952,7 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 
 				operatorFeeCost := st.evm.Context.OperatorCostFunc(st.gasUsed(), st.evm.Context.Time)
 				st.operatorFee = operatorFeeCost.Clone()
+				operatorFeeCost = st.collectableNativeBalance(operatorFeeCost)
 				st.state.AddBalance(params.OptimismOperatorFeeRecipient, operatorFeeCost, tracing.BalanceIncreaseRewardTransactionFee)
 			}
 
