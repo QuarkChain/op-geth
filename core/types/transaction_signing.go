@@ -41,7 +41,7 @@ func MakeSigner(config *params.ChainConfig, blockNumber *big.Int, blockTime uint
 	var signer Signer
 	switch {
 	case config.IsIsthmus(blockTime):
-		signer = NewIsthmusSigner(config.ChainID)
+		signer = NewIsthmusSigner(config.ChainID, config.IsL2Blob(blockNumber, blockTime))
 	case config.IsPrague(blockNumber, blockTime) && !config.IsOptimism():
 		signer = NewPragueSigner(config.ChainID)
 	case config.IsCancun(blockNumber, blockTime) && (!config.IsOptimism() || config.IsL2Blob(blockNumber, blockTime)):
@@ -72,7 +72,7 @@ func LatestSigner(config *params.ChainConfig) Signer {
 	if config.ChainID != nil {
 		switch {
 		case config.IsthmusTime != nil:
-			signer = NewIsthmusSigner(config.ChainID)
+			signer = NewIsthmusSigner(config.ChainID, config.IsOptimism() && config.Optimism.L2BlobTime != nil)
 		case config.PragueTime != nil && !config.IsOptimism():
 			signer = NewPragueSigner(config.ChainID)
 		case config.CancunTime != nil && (!config.IsOptimism() || config.Optimism.L2BlobTime != nil):
@@ -254,7 +254,10 @@ func (s pragueSigner) Hash(tx *Transaction) common.Hash {
 }
 
 // isthmusSigner skips cancun because blob txs are not supported on OP
-type isthmusSigner struct{ pragueSigner }
+type isthmusSigner struct {
+	pragueSigner
+	enableL2Blob bool
+}
 
 // NewIsthmusSigner returns a signer that accepts
 // - EIP-7702 set code transactions
@@ -263,13 +266,13 @@ type isthmusSigner struct{ pragueSigner }
 // - EIP-2930 access list transactions,
 // - EIP-155 replay protected transactions, and
 // - legacy Homestead transactions.
-func NewIsthmusSigner(chainId *big.Int) Signer {
+func NewIsthmusSigner(chainId *big.Int, enableL2Blob bool) Signer {
 	signer, _ := NewPragueSigner(chainId).(pragueSigner)
-	return isthmusSigner{signer}
+	return isthmusSigner{signer, enableL2Blob}
 }
 
 func (s isthmusSigner) Sender(tx *Transaction) (common.Address, error) {
-	if tx.Type() == BlobTxType {
+	if tx.Type() == BlobTxType && !s.enableL2Blob {
 		return common.Address{}, fmt.Errorf("isthmus does not support blob txs: %w", ErrTxTypeNotSupported)
 	}
 
@@ -282,7 +285,7 @@ func (s isthmusSigner) Equal(s2 Signer) bool {
 }
 
 func (s isthmusSigner) SignatureValues(tx *Transaction, sig []byte) (R, S, V *big.Int, err error) {
-	if tx.Type() == BlobTxType {
+	if tx.Type() == BlobTxType && !s.enableL2Blob {
 		return nil, nil, nil, fmt.Errorf("isthmus does not support blob txs: %w", ErrTxTypeNotSupported)
 	}
 
