@@ -69,6 +69,15 @@ func LoadOPStackChainConfig(chConfig *superchain.ChainConfig) (*ChainConfig, err
 		if chConfig.Optimism.EIP1559DenominatorCanyon != nil {
 			out.Optimism.EIP1559DenominatorCanyon = uint64ptr(*chConfig.Optimism.EIP1559DenominatorCanyon)
 		}
+		if chConfig.Optimism.L2BlobTime != nil {
+			out.Optimism.L2BlobTime = uint64ptr(*chConfig.Optimism.L2BlobTime)
+		}
+		if chConfig.Optimism.SoulGasTokenTime != nil {
+			out.Optimism.SoulGasTokenTime = uint64ptr(*chConfig.Optimism.SoulGasTokenTime)
+		}
+		out.Optimism.IsSoulBackedByNative = chConfig.Optimism.IsSoulBackedByNative
+		out.Optimism.L1BaseFeeScalarMultiplier = chConfig.Optimism.L1BaseFeeScalarMultiplier
+		out.Optimism.L1BlobBaseFeeScalarMultiplier = chConfig.Optimism.L1BlobBaseFeeScalarMultiplier
 	}
 
 	// special overrides for OP-Stack chains with pre-Regolith upgrade history

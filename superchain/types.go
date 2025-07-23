@@ -48,9 +48,14 @@ type HardforkConfig struct {
 }
 
 type OptimismConfig struct {
-	EIP1559Elasticity        uint64  `toml:"eip1559_elasticity"`
-	EIP1559Denominator       uint64  `toml:"eip1559_denominator"`
-	EIP1559DenominatorCanyon *uint64 `toml:"eip1559_denominator_canyon"`
+	EIP1559Elasticity             uint64  `toml:"eip1559_elasticity"`
+	EIP1559Denominator            uint64  `toml:"eip1559_denominator"`
+	EIP1559DenominatorCanyon      *uint64 `toml:"eip1559_denominator_canyon"`
+	L2BlobTime                    *uint64 `toml:"l2_blob_time"`
+	SoulGasTokenTime              *uint64 `toml:"soul_gas_token_time"`
+	IsSoulBackedByNative          bool    `toml:"is_soul_backed_by_native"`
+	L1BaseFeeScalarMultiplier     uint64  `toml:"l1_base_fee_scalar_multiplier"`
+	L1BlobBaseFeeScalarMultiplier uint64  `toml:"l1_blob_base_fee_scalar_multiplier"`
 }
 
 type AltDAConfig struct {
