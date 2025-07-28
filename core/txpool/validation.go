@@ -17,7 +17,6 @@
 package txpool
 
 import (
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"math/big"
@@ -67,6 +66,7 @@ type ValidationOptions struct {
 	MinTip  *big.Int // Minimum gas tip needed to allow a transaction into the caller pool
 
 	EffectiveGasCeil uint64 // if non-zero, a gas ceiling to enforce independent of the header's gaslimit value
+	MaxTxGasLimit    uint64 // Maximum gas limit allowed per individual transaction
 }
 
 // ValidationFunction is an method type which the pools use to perform the tx-validations which do not
@@ -126,6 +126,10 @@ func ValidateTransaction(tx *types.Transaction, head *types.Header, signer types
 	if EffectiveGasLimit(opts.Config, head.GasLimit, opts.EffectiveGasCeil) < tx.Gas() {
 		return ErrGasLimit
 	}
+	// Check individual transaction gas limit if configured
+	if opts.MaxTxGasLimit != 0 && tx.Gas() > opts.MaxTxGasLimit {
+		return fmt.Errorf("%w: transaction gas %v, limit %v", ErrTxGasLimitExceeded, tx.Gas(), opts.MaxTxGasLimit)
+	}
 	// Sanity check for extremely large numbers (supported by RLP or RPC)
 	if tx.GasFeeCap().BitLen() > 256 {
 		return core.ErrFeeCapVeryHigh
@@ -162,12 +166,12 @@ func ValidateTransaction(tx *types.Transaction, head *types.Header, signer types
 	}
 	// Ensure the gasprice is high enough to cover the requirement of the calling pool
 	if tx.GasTipCapIntCmp(opts.MinTip) < 0 {
-		return fmt.Errorf("%w: gas tip cap %v, minimum needed %v", ErrUnderpriced, tx.GasTipCap(), opts.MinTip)
+		return fmt.Errorf("%w: gas tip cap %v, minimum needed %v", ErrTxGasPriceTooLow, tx.GasTipCap(), opts.MinTip)
 	}
 	if tx.Type() == types.BlobTxType {
 		// Ensure the blob fee cap satisfies the minimum blob gas price
 		if tx.BlobGasFeeCapIntCmp(blobTxMinBlobGasPrice) < 0 {
-			return fmt.Errorf("%w: blob fee cap %v, minimum needed %v", ErrUnderpriced, tx.BlobGasFeeCap(), blobTxMinBlobGasPrice)
+			return fmt.Errorf("%w: blob fee cap %v, minimum needed %v", ErrTxGasPriceTooLow, tx.BlobGasFeeCap(), blobTxMinBlobGasPrice)
 		}
 		sidecar := tx.BlobTxSidecar()
 		if sidecar == nil {
@@ -200,20 +204,11 @@ func validateBlobSidecar(hashes []common.Hash, sidecar *types.BlobTxSidecar) err
 	if len(sidecar.Blobs) != len(hashes) {
 		return fmt.Errorf("invalid number of %d blobs compared to %d blob hashes", len(sidecar.Blobs), len(hashes))
 	}
-	if len(sidecar.Commitments) != len(hashes) {
-		return fmt.Errorf("invalid number of %d blob commitments compared to %d blob hashes", len(sidecar.Commitments), len(hashes))
-	}
 	if len(sidecar.Proofs) != len(hashes) {
 		return fmt.Errorf("invalid number of %d blob proofs compared to %d blob hashes", len(sidecar.Proofs), len(hashes))
 	}
-	// Blob quantities match up, validate that the provers match with the
-	// transaction hash before getting to the cryptography
-	hasher := sha256.New()
-	for i, vhash := range hashes {
-		computed := kzg4844.CalcBlobHashV1(hasher, &sidecar.Commitments[i])
-		if vhash != computed {
-			return fmt.Errorf("blob %d: computed hash %#x mismatches transaction one %#x", i, computed, vhash)
-		}
+	if err := sidecar.ValidateBlobCommitmentHashes(hashes); err != nil {
+		return err
 	}
 	// Blob commitments match with the hashes in the transaction, verify the
 	// blobs themselves via KZG

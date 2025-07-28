@@ -33,7 +33,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/stateless"
 	"github.com/ethereum/go-ethereum/core/txpool"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/core/types/interoptypes"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth/tracers"
 	"github.com/ethereum/go-ethereum/log"
@@ -58,8 +57,6 @@ var (
 
 	txConditionalRejectedCounter = metrics.NewRegisteredCounter("miner/transactionConditional/rejected", nil)
 	txConditionalMinedTimer      = metrics.NewRegisteredTimer("miner/transactionConditional/elapsedtime", nil)
-
-	txInteropRejectedCounter = metrics.NewRegisteredCounter("miner/transactionInterop/rejected", nil)
 )
 
 // environment is the worker's current environment and holds all
@@ -200,9 +197,13 @@ func (miner *Miner) generateWork(params *generateParams, witness bool) *newPaylo
 			return &newPayloadResult{err: err}
 		}
 		// EIP-7002
-		core.ProcessWithdrawalQueue(&requests, work.evm)
+		if err := core.ProcessWithdrawalQueue(&requests, work.evm); err != nil {
+			return &newPayloadResult{err: err}
+		}
 		// EIP-7251 consolidations
-		core.ProcessConsolidationQueue(&requests, work.evm)
+		if err := core.ProcessConsolidationQueue(&requests, work.evm); err != nil {
+			return &newPayloadResult{err: err}
+		}
 	}
 
 	if isIsthmus {
@@ -446,48 +447,12 @@ func (miner *Miner) applyTransaction(env *environment, tx *types.Transaction) (*
 		snap = env.state.Snapshot()
 		gp   = env.gasPool.Gas()
 	)
-	if !env.noTxs && miner.chain.Config().IsInterop(env.header.Time) {
-		// avoid execution if the interop check fails
-		if err := miner.checkInterop(env.rpcCtx, tx, env.header.Time); err != nil {
-			return nil, err
-		}
-	}
 	receipt, err := core.ApplyTransaction(env.evm, env.gasPool, env.state, env.header, tx, &env.header.GasUsed)
 	if err != nil {
 		env.state.RevertToSnapshot(snap)
 		env.gasPool.SetGas(gp)
 	}
 	return receipt, err
-}
-
-func (miner *Miner) checkInterop(ctx context.Context, tx *types.Transaction, logTimestamp uint64) error {
-	if tx.Type() == types.DepositTxType {
-		return nil // deposit-txs are always safe
-	}
-	if tx.Rejected() {
-		return errors.New("transaction was previously rejected")
-	}
-	b, ok := miner.backend.(BackendWithInterop)
-	if !ok {
-		return fmt.Errorf("cannot mine interop txs without interop backend, got backend type %T", miner.backend)
-	}
-	if ctx == nil { // check if the miner was set up correctly to interact with an RPC
-		return errors.New("need RPC context to check executing messages")
-	}
-	accessList := interoptypes.TxToInteropAccessList(tx)
-	if len(accessList) == 0 {
-		return nil // avoid an RPC check if there are no executing messages to verify.
-	}
-	if err := b.CheckAccessList(ctx, accessList, interoptypes.CrossUnsafe, interoptypes.ExecutingDescriptor{Timestamp: logTimestamp, Timeout: 0}); err != nil {
-		if ctx.Err() != nil { // don't reject transactions permanently on RPC timeouts etc.
-			log.Debug("CheckAccessList timed out", "err", ctx.Err())
-			return err
-		}
-		txInteropRejectedCounter.Inc(1)
-		tx.SetRejected() // Mark the tx as rejected: it will not be welcome in the tx-pool anymore.
-		return err
-	}
-	return nil
 }
 
 func (miner *Miner) commitTransactions(env *environment, plainTxs, blobTxs *transactionsByPriceAndNonce, interrupt *atomic.Int32) error {
@@ -702,6 +667,7 @@ func totalFees(block *types.Block, receipts []*types.Receipt) *big.Int {
 	for i, tx := range block.Transactions() {
 		minerFee, _ := tx.EffectiveGasTip(block.BaseFee())
 		feesWei.Add(feesWei, new(big.Int).Mul(new(big.Int).SetUint64(receipts[i].GasUsed), minerFee))
+		// TODO (MariusVanDerWijden) add blob fees
 	}
 	return feesWei
 }
