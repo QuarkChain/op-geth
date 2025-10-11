@@ -132,12 +132,12 @@ func CalcExcessBlobGas(config *params.ChainConfig, parent *types.Header, headTim
 	// OP-Stack chains don't support blobs, but still set the excessBlobGas field (always to zero).
 	// So this function is called in many places for OP-Stack chains too. In order to not require
 	// a blob schedule in the chain config, we short circuit here.
-	if config.IsOptimism() {
-		if config.BlobScheduleConfig != nil {
-			panic("OP-Stack: CalcBlobFee: unexpected blob schedule or excess blob gas")
-		}
-		return 0
-	}
+	// if config.IsOptimism() {
+	// 	if config.BlobScheduleConfig != nil {
+	// 		panic("OP-Stack: CalcBlobFee: unexpected blob schedule or excess blob gas")
+	// 	}
+	// 	return 0
+	// }
 
 	isOsaka := config.IsOsaka(config.LondonBlock, headTimestamp)
 	bcfg := latestBlobConfig(config, headTimestamp)
