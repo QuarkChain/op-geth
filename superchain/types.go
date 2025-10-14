@@ -4,6 +4,10 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+type InboxContractConfig struct {
+	UseInboxContract bool `toml:"use_inbox_contract,omitempty"`
+}
+
 type ChainConfig struct {
 	Name                 string       `toml:"name"`
 	PublicRPC            string       `toml:"public_rpc"`
@@ -24,6 +28,8 @@ type ChainConfig struct {
 	Hardforks         HardforkConfig  `toml:"hardforks"`
 	Interop           *Interop        `toml:"interop,omitempty"`
 	Optimism          *OptimismConfig `toml:"optimism,omitempty"`
+
+	InboxContractConfig *InboxContractConfig `toml:"inbox_contract_config,omitempty"`
 
 	AltDA *AltDAConfig `toml:"alt_da,omitempty"`
 
