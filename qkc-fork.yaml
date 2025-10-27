@@ -5,7 +5,7 @@ footer: |
 base:
   name: official op-geth
   url: https://github.com/ethereum-optimism/op-geth
-  hash: 2b9abb39077cb88f6e8a513f09a5ea2c2569dfed
+  hash: 8da5bf081a47206ee75bb88c90bf64fed4bc8e97
 fork:
   name: SWC op-geth
   url: https://github.com/Quarkchain/op-geth
