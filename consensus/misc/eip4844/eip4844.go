@@ -141,6 +141,9 @@ func CalcExcessBlobGas(config *params.ChainConfig, parent *types.Header, headTim
 
 	isOsaka := config.IsOsaka(config.LondonBlock, headTimestamp)
 	bcfg := latestBlobConfig(config, headTimestamp)
+	if bcfg == nil {
+		return 0
+	}
 	return calcExcessBlobGas(isOsaka, bcfg, parent)
 }
 
@@ -191,7 +194,7 @@ func CalcBlobFee(config *params.ChainConfig, header *types.Header) *big.Int {
 
 	blobConfig := latestBlobConfig(config, header.Time)
 	if blobConfig == nil {
-		panic("calculating blob fee on unsupported fork")
+		return minBlobGasPrice
 	}
 	return blobConfig.blobBaseFee(*header.ExcessBlobGas)
 }
