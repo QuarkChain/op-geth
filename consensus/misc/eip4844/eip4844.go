@@ -55,6 +55,9 @@ func (bc *BlobConfig) blobPrice(excessBlobGas uint64) *big.Int {
 
 func latestBlobConfig(cfg *params.ChainConfig, time uint64) *BlobConfig {
 	if cfg.BlobScheduleConfig == nil {
+		if cfg.IsL2Blob(cfg.LondonBlock, time) {
+			panic("blob schedule missing for L2Blob")
+		}
 		return nil
 	}
 	var (
