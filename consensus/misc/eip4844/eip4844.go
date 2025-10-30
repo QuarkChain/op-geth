@@ -55,9 +55,6 @@ func (bc *BlobConfig) blobPrice(excessBlobGas uint64) *big.Int {
 
 func latestBlobConfig(cfg *params.ChainConfig, time uint64) *BlobConfig {
 	if cfg.BlobScheduleConfig == nil {
-		if cfg.IsL2Blob(cfg.LondonBlock, time) {
-			panic("blob schedule missing for L2Blob")
-		}
 		return nil
 	}
 	var (
@@ -145,6 +142,9 @@ func CalcExcessBlobGas(config *params.ChainConfig, parent *types.Header, headTim
 	isOsaka := config.IsOsaka(config.LondonBlock, headTimestamp)
 	bcfg := latestBlobConfig(config, headTimestamp)
 	if bcfg == nil {
+		if config.IsL2Blob(config.LondonBlock, headTimestamp) {
+			panic("failed to load blob config for L2Blob")
+		}
 		return 0
 	}
 	return calcExcessBlobGas(isOsaka, bcfg, parent)
@@ -197,6 +197,9 @@ func CalcBlobFee(config *params.ChainConfig, header *types.Header) *big.Int {
 
 	blobConfig := latestBlobConfig(config, header.Time)
 	if blobConfig == nil {
+		if config.IsL2Blob(config.LondonBlock, header.Time) {
+			panic("failed to load blob config for L2Blob")
+		}
 		return minBlobGasPrice
 	}
 	return blobConfig.blobBaseFee(*header.ExcessBlobGas)
