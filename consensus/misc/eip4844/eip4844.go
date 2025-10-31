@@ -141,6 +141,12 @@ func CalcExcessBlobGas(config *params.ChainConfig, parent *types.Header, headTim
 
 	isOsaka := config.IsOsaka(config.LondonBlock, headTimestamp)
 	bcfg := latestBlobConfig(config, headTimestamp)
+	if bcfg == nil {
+		if config.IsL2Blob(config.LondonBlock, headTimestamp) {
+			panic("failed to load blob config for L2Blob")
+		}
+		return 0
+	}
 	return calcExcessBlobGas(isOsaka, bcfg, parent)
 }
 
@@ -191,7 +197,10 @@ func CalcBlobFee(config *params.ChainConfig, header *types.Header) *big.Int {
 
 	blobConfig := latestBlobConfig(config, header.Time)
 	if blobConfig == nil {
-		panic("calculating blob fee on unsupported fork")
+		if config.IsL2Blob(config.LondonBlock, header.Time) {
+			panic("failed to load blob config for L2Blob")
+		}
+		return minBlobGasPrice
 	}
 	return blobConfig.blobBaseFee(*header.ExcessBlobGas)
 }
