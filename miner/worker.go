@@ -74,6 +74,9 @@ type environment struct {
 	coinbase common.Address
 	evm      *vm.EVM
 
+	// OP-Stack addition: DA footprint block limit
+	daFootprintGasScalar uint16
+
 	header   *types.Header
 	txs      []*types.Transaction
 	receipts []*types.Receipt
@@ -311,9 +314,12 @@ func (miner *Miner) prepareWork(genParams *generateParams, witness bool) (*envir
 	}
 	if genParams.gasLimit != nil { // override gas limit if specified
 		header.GasLimit = *genParams.gasLimit
-	} else if miner.chain.Config().Optimism != nil && miner.config.GasCeil != 0 {
+	} else if miner.chain.Config().IsOptimism() && miner.config.GasCeil != 0 {
 		// configure the gas limit of pending blocks with the miner gas limit config when using optimism
 		header.GasLimit = miner.config.GasCeil
+	}
+	if miner.chainConfig.IsMinBaseFee(header.Time) && genParams.minBaseFee == nil {
+		return nil, errors.New("missing minBaseFee")
 	}
 	if cfg := miner.chainConfig; cfg.IsHolocene(header.Time) {
 		if err := eip1559.ValidateHolocene1559Params(genParams.eip1559Params); err != nil {
@@ -355,6 +361,15 @@ func (miner *Miner) prepareWork(genParams *generateParams, witness bool) (*envir
 		return nil, err
 	}
 	env.noTxs = genParams.noTxs
+	if miner.chainConfig.IsDAFootprintBlockLimit(parent.Time) {
+		if len(genParams.txs) == 0 || !genParams.txs[0].IsDepositTx() {
+			return nil, errors.New("missing L1 attributes deposit transaction")
+		}
+		env.daFootprintGasScalar, err = types.ExtractDAFootprintGasScalar(genParams.txs[0].Data())
+		if err != nil {
+			return nil, err
+		}
+	}
 	if header.ParentBeaconRoot != nil {
 		core.ProcessBeaconBlockRoot(*header.ParentBeaconRoot, env.evm)
 	}
@@ -507,7 +522,12 @@ func (miner *Miner) commitTransactions(env *environment, plainTxs, blobTxs *tran
 	if env.gasPool == nil {
 		env.gasPool = new(core.GasPool).AddGas(gasLimit)
 	}
+
+	// OP-Stack additions: throttling and DA footprint limit
 	blockDABytes := new(big.Int)
+	isJovian := miner.chainConfig.IsDAFootprintBlockLimit(env.header.Time)
+	minTransactionDAFootprint := types.MinTransactionSize.Uint64() * uint64(env.daFootprintGasScalar)
+
 	for {
 		// Check interruption signal and abort building if it's fired.
 		if interrupt != nil {
@@ -520,6 +540,17 @@ func (miner *Miner) commitTransactions(env *environment, plainTxs, blobTxs *tran
 			log.Trace("Not enough gas for further transactions", "have", env.gasPool, "want", params.TxGas)
 			break
 		}
+
+		var daFootprintLeft uint64
+		if isJovian {
+			daFootprintLeft = gasLimit - *env.header.BlobGasUsed
+			// If we don't have enough DA space for any further transactions then we're done.
+			if daFootprintLeft < minTransactionDAFootprint {
+				log.Debug("Not enough DA space for further transactions", "have", daFootprintLeft, "want", minTransactionDAFootprint)
+				break
+			}
+		}
+
 		// If we don't have enough blob space for any further blob transactions,
 		// skip that list altogether
 		if !blobTxs.Empty() && env.blobs >= eip4844.MaxBlobsPerBlock(miner.chainConfig, env.header.Time) {
@@ -564,6 +595,19 @@ func (miner *Miner) commitTransactions(env *environment, plainTxs, blobTxs *tran
 			left := eip4844.MaxBlobsPerBlock(miner.chainConfig, env.header.Time) - env.blobs
 			if left < int(ltx.BlobGas/params.BlobTxBlobGasPerBlob) {
 				log.Trace("Not enough blob space left for transaction", "hash", ltx.Hash, "left", left, "needed", ltx.BlobGas/params.BlobTxBlobGasPerBlob)
+				txs.Pop()
+				continue
+			}
+		}
+
+		// OP-Stack addition: Jovian DA footprint limit
+		var txDAFootprint uint64
+		// Note that commitTransaction is only called after deposit transactions have already been committed,
+		// so we don't need to resolve the transaction here and exclude deposits.
+		if isJovian {
+			txDAFootprint = ltx.DABytes.Uint64() * uint64(env.daFootprintGasScalar)
+			if daFootprintLeft < txDAFootprint {
+				log.Debug("Not enough DA space left for transaction", "hash", ltx.Hash, "left", daFootprintLeft, "needed", txDAFootprint)
 				txs.Pop()
 				continue
 			}
@@ -641,6 +685,9 @@ func (miner *Miner) commitTransactions(env *environment, plainTxs, blobTxs *tran
 		case errors.Is(err, nil):
 			// Everything ok, collect the logs and shift in the next transaction from the same account
 			blockDABytes = daBytesAfter
+			if isJovian {
+				*env.header.BlobGasUsed += txDAFootprint
+			}
 			txs.Shift()
 
 		default:
