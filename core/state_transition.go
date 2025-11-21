@@ -954,17 +954,17 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 
 			amtU256 = st.collectNativeBalance(amtU256)
 			st.state.AddBalance(params.OptimismBaseFeeRecipient, amtU256, tracing.BalanceIncreaseRewardTransactionFee)
-			if l1Cost := st.evm.Context.L1CostFunc(st.msg.RollupCostData, st.evm.Context.Time); l1Cost != nil {
-				amtU256, overflow = uint256.FromBig(l1Cost)
-				if overflow {
-					return nil, fmt.Errorf("optimism l1 cost overflows U256: %d", l1Cost)
-				}
-				if shouldCheckGasFormula {
+			if shouldCheckGasFormula {
+				if l1Cost := st.evm.Context.L1CostFunc(st.msg.RollupCostData, st.evm.Context.Time); l1Cost != nil {
+					amtU256, overflow = uint256.FromBig(l1Cost)
+					if overflow {
+						return nil, fmt.Errorf("optimism l1 cost overflows U256: %d", l1Cost)
+					}
 					st.l1Fee = amtU256.Clone()
-				}
 
-				amtU256 = st.collectNativeBalance(amtU256)
-				st.state.AddBalance(params.OptimismL1FeeRecipient, amtU256, tracing.BalanceIncreaseRewardTransactionFee)
+					amtU256 = st.collectNativeBalance(amtU256)
+					st.state.AddBalance(params.OptimismL1FeeRecipient, amtU256, tracing.BalanceIncreaseRewardTransactionFee)
+				}
 			}
 
 			if rules.IsOptimismIsthmus && shouldCheckGasFormula {
