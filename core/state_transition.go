@@ -967,8 +967,9 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 				st.state.AddBalance(params.OptimismL1FeeRecipient, amtU256, tracing.BalanceIncreaseRewardTransactionFee)
 			}
 
-			if rules.IsOptimismIsthmus {
+			if rules.IsOptimismIsthmus && shouldCheckGasFormula {
 				// Operator Fee refunds are only applied if Isthmus is active and the transaction is *not* a deposit.
+				// Skip during gas estimation (when shouldCheckGasFormula is false) since operator cost wasn't pre-charged.
 				st.refundIsthmusOperatorCost()
 
 				operatorFeeCost := st.evm.Context.OperatorCostFunc(st.gasUsed(), st.evm.Context.Time)
