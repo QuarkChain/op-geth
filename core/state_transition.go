@@ -965,20 +965,18 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 					amtU256 = st.collectNativeBalance(amtU256)
 					st.state.AddBalance(params.OptimismL1FeeRecipient, amtU256, tracing.BalanceIncreaseRewardTransactionFee)
 				}
-			}
 
-			if rules.IsOptimismIsthmus && shouldCheckGasFormula {
-				// Operator Fee refunds are only applied if Isthmus is active and the transaction is *not* a deposit.
-				// Skip during gas estimation (when shouldCheckGasFormula is false) since operator cost wasn't pre-charged.
-				st.refundIsthmusOperatorCost()
+				if rules.IsOptimismIsthmus {
+					// Operator Fee refunds are only applied if Isthmus is active and the transaction is *not* a deposit.
+					// Skip during gas estimation (when shouldCheckGasFormula is false) since operator cost wasn't pre-charged.
+					st.refundIsthmusOperatorCost()
 
-				operatorFeeCost := st.evm.Context.OperatorCostFunc(st.gasUsed(), st.evm.Context.Time)
-				st.operatorFee = operatorFeeCost.Clone()
-				operatorFeeCost = st.collectNativeBalance(operatorFeeCost)
-				st.state.AddBalance(params.OptimismOperatorFeeRecipient, operatorFeeCost, tracing.BalanceIncreaseRewardTransactionFee)
-			}
+					operatorFeeCost := st.evm.Context.OperatorCostFunc(st.gasUsed(), st.evm.Context.Time)
+					st.operatorFee = operatorFeeCost.Clone()
+					operatorFeeCost = st.collectNativeBalance(operatorFeeCost)
+					st.state.AddBalance(params.OptimismOperatorFeeRecipient, operatorFeeCost, tracing.BalanceIncreaseRewardTransactionFee)
+				}
 
-			if shouldCheckGasFormula {
 				if st.l1Fee == nil {
 					st.l1Fee = new(uint256.Int)
 				}
