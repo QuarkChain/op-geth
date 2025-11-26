@@ -954,30 +954,29 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 
 			amtU256 = st.collectNativeBalance(amtU256)
 			st.state.AddBalance(params.OptimismBaseFeeRecipient, amtU256, tracing.BalanceIncreaseRewardTransactionFee)
-			if l1Cost := st.evm.Context.L1CostFunc(st.msg.RollupCostData, st.evm.Context.Time); l1Cost != nil {
-				amtU256, overflow = uint256.FromBig(l1Cost)
-				if overflow {
-					return nil, fmt.Errorf("optimism l1 cost overflows U256: %d", l1Cost)
-				}
-				if shouldCheckGasFormula {
-					st.l1Fee = amtU256.Clone()
-				}
-
-				amtU256 = st.collectNativeBalance(amtU256)
-				st.state.AddBalance(params.OptimismL1FeeRecipient, amtU256, tracing.BalanceIncreaseRewardTransactionFee)
-			}
-
-			if rules.IsOptimismIsthmus {
-				// Operator Fee refunds are only applied if Isthmus is active and the transaction is *not* a deposit.
-				st.refundIsthmusOperatorCost()
-
-				operatorFeeCost := st.evm.Context.OperatorCostFunc(st.gasUsed(), st.evm.Context.Time)
-				st.operatorFee = operatorFeeCost.Clone()
-				operatorFeeCost = st.collectNativeBalance(operatorFeeCost)
-				st.state.AddBalance(params.OptimismOperatorFeeRecipient, operatorFeeCost, tracing.BalanceIncreaseRewardTransactionFee)
-			}
-
 			if shouldCheckGasFormula {
+				if l1Cost := st.evm.Context.L1CostFunc(st.msg.RollupCostData, st.evm.Context.Time); l1Cost != nil {
+					amtU256, overflow = uint256.FromBig(l1Cost)
+					if overflow {
+						return nil, fmt.Errorf("optimism l1 cost overflows U256: %d", l1Cost)
+					}
+					st.l1Fee = amtU256.Clone()
+
+					amtU256 = st.collectNativeBalance(amtU256)
+					st.state.AddBalance(params.OptimismL1FeeRecipient, amtU256, tracing.BalanceIncreaseRewardTransactionFee)
+				}
+
+				if rules.IsOptimismIsthmus {
+					// Operator Fee refunds are only applied if Isthmus is active and the transaction is *not* a deposit.
+					// Skip during gas estimation (when shouldCheckGasFormula is false) since operator cost wasn't pre-charged.
+					st.refundIsthmusOperatorCost()
+
+					operatorFeeCost := st.evm.Context.OperatorCostFunc(st.gasUsed(), st.evm.Context.Time)
+					st.operatorFee = operatorFeeCost.Clone()
+					operatorFeeCost = st.collectNativeBalance(operatorFeeCost)
+					st.state.AddBalance(params.OptimismOperatorFeeRecipient, operatorFeeCost, tracing.BalanceIncreaseRewardTransactionFee)
+				}
+
 				if st.l1Fee == nil {
 					st.l1Fee = new(uint256.Int)
 				}
