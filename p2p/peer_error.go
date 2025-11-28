@@ -107,6 +107,7 @@ func discReasonForError(err error) DiscReason {
 		return reason
 	}
 	if errors.Is(err, errProtocolReturned) {
+		fmt.Println("errProtocolReturned")
 		return DiscQuitting
 	}
 	peerError, ok := err.(*peerError)
