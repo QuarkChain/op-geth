@@ -255,6 +255,7 @@ func (h *handler) decHandlers() {
 // various subsystems and starts handling messages.
 func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 	if !h.incHandlers() {
+		peer.Log().Info("runEthPeer: quitting, disconnecting", "id", peer.ID(), "ip", peer.Node().IPAddr().String())
 		return p2p.DiscQuitting
 	}
 	defer h.decHandlers()
@@ -375,6 +376,7 @@ func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 // the main `eth` handler to prevent strange races.
 func (h *handler) runSnapExtension(peer *snap.Peer, handler snap.Handler) error {
 	if !h.incHandlers() {
+		peer.Log().Info("runSnapExtension: quitting, disconnecting", "id", peer.ID(), "ip", peer.Node().IPAddr().String())
 		return p2p.DiscQuitting
 	}
 	defer h.decHandlers()
