@@ -19,6 +19,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os"
 	"slices"
 	"time"
 
@@ -29,6 +30,10 @@ import (
 )
 
 var (
+	discv5DumpFlag = &cli.BoolFlag{
+		Name:  "dump",
+		Usage: "Dump all peers every 10 seconds",
+	}
 	discv5Command = &cli.Command{
 		Name:  "discv5",
 		Usage: "Node Discovery v5 tools",
@@ -75,7 +80,7 @@ var (
 		Name:   "listen",
 		Usage:  "Runs a node",
 		Action: discv5Listen,
-		Flags:  discoveryNodeFlags,
+		Flags:  slices.Concat(discoveryNodeFlags, []cli.Flag{discv5DumpFlag}),
 	}
 )
 
@@ -136,6 +141,20 @@ func discv5Listen(ctx *cli.Context) error {
 	defer disc.Close()
 
 	fmt.Println(disc.Self())
+
+	if ctx.Bool(discv5DumpFlag.Name) {
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
+			nodes := disc.AllNodes()
+			fmt.Printf("\n--- Dumping %d peers ---\n", len(nodes))
+			for i, n := range nodes {
+				fmt.Printf("\n[%d] %s\n", i+1, n.String())
+				dumpRecord(os.Stdout, n.Record())
+			}
+		}
+	}
+
 	select {}
 }
 
