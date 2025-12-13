@@ -207,18 +207,18 @@ func startV5(ctx *cli.Context) (*discover.UDPv5, discover.Config) {
 		config.NodeFilter = func(node *enode.Node) bool {
 			var dat opStackENRData
 			if err := node.Load(&dat); err != nil {
-				log.Info("Node has no opstack ENR entry", "id", node.ID(), "err", err)
+				log.Info("Node has no opstack ENR entry", "id", node.ID(), "ip", node.IP(), "err", err)
 				return false
 			}
 			if dat.chainID != expectedChainID {
-				log.Info("Node has different chain ID", "id", node.ID(), "got", dat.chainID, "expected", expectedChainID)
+				log.Info("Node has different chain ID", "id", node.ID(), "ip", node.IP(), "got", dat.chainID, "expected", expectedChainID)
 				return false
 			}
 			if dat.version != 0 {
-				log.Info("Node has different version", "id", node.ID(), "got", dat.version, "expected", 0)
+				log.Info("Node has different version", "id", node.ID(), "ip", node.IP(), "got", dat.version, "expected", 0)
 				return false
 			}
-			log.Info("Node passed filter", "id", node.ID(), "chainID", dat.chainID)
+			log.Info("Node passed filter", "id", node.ID(), "ip", node.IP(), "chainID", dat.chainID)
 			return true
 		}
 		log.Info("OP Stack node filter enabled", "chainID", expectedChainID)
