@@ -514,6 +514,10 @@ func (tab *Table) handleAddNode(req addNodeOp) bool {
 	if req.isInbound && !tab.isInitDone() {
 		return false
 	}
+	// Apply node filter if configured.
+	if tab.cfg.NodeFilter != nil && !tab.cfg.NodeFilter(req.node) {
+		return false
+	}
 
 	b := tab.bucket(req.node.ID())
 	n, _ := tab.bumpInBucket(b, req.node, req.isInbound)

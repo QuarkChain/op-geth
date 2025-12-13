@@ -17,6 +17,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"os"
@@ -25,7 +27,11 @@ import (
 
 	"github.com/ethereum/go-ethereum/cmd/devp2p/internal/v5test"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/discover"
+	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/enr"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/urfave/cli/v2"
 )
 
@@ -33,6 +39,10 @@ var (
 	discv5DumpFlag = &cli.BoolFlag{
 		Name:  "dump",
 		Usage: "Dump all peers every 10 seconds",
+	}
+	opStackChainIDFlag = &cli.Uint64Flag{
+		Name:  "opstack-chainid",
+		Usage: "Filter nodes by OP Stack chain ID (only nodes with matching opstack ENR entry will be accepted)",
 	}
 	discv5Command = &cli.Command{
 		Name:  "discv5",
@@ -80,7 +90,7 @@ var (
 		Name:   "listen",
 		Usage:  "Runs a node",
 		Action: discv5Listen,
-		Flags:  slices.Concat(discoveryNodeFlags, []cli.Flag{discv5DumpFlag}),
+		Flags:  slices.Concat(discoveryNodeFlags, []cli.Flag{discv5DumpFlag, opStackChainIDFlag}),
 	}
 )
 
@@ -158,9 +168,62 @@ func discv5Listen(ctx *cli.Context) error {
 	select {}
 }
 
+// opStackENRData is the ENR entry for OP Stack chain identification.
+type opStackENRData struct {
+	chainID uint64
+	version uint64
+}
+
+func (o *opStackENRData) ENRKey() string { return "opstack" }
+
+func (o *opStackENRData) DecodeRLP(s *rlp.Stream) error {
+	b, err := s.Bytes()
+	if err != nil {
+		return fmt.Errorf("failed to decode outer ENR entry: %w", err)
+	}
+	r := bytes.NewReader(b)
+	chainID, err := binary.ReadUvarint(r)
+	if err != nil {
+		return fmt.Errorf("failed to read chain ID var int: %w", err)
+	}
+	version, err := binary.ReadUvarint(r)
+	if err != nil {
+		return fmt.Errorf("failed to read version var int: %w", err)
+	}
+	o.chainID = chainID
+	o.version = version
+	return nil
+}
+
+var _ enr.Entry = (*opStackENRData)(nil)
+
 // startV5 starts an ephemeral discovery v5 node.
 func startV5(ctx *cli.Context) (*discover.UDPv5, discover.Config) {
 	ln, config := makeDiscoveryConfig(ctx)
+
+	// Set up OP Stack chain ID filter if specified
+	if ctx.IsSet(opStackChainIDFlag.Name) {
+		expectedChainID := ctx.Uint64(opStackChainIDFlag.Name)
+		config.NodeFilter = func(node *enode.Node) bool {
+			var dat opStackENRData
+			if err := node.Load(&dat); err != nil {
+				log.Info("Node has no opstack ENR entry", "id", node.ID(), "err", err)
+				return false
+			}
+			if dat.chainID != expectedChainID {
+				log.Info("Node has different chain ID", "id", node.ID(), "got", dat.chainID, "expected", expectedChainID)
+				return false
+			}
+			if dat.version != 0 {
+				log.Info("Node has different version", "id", node.ID(), "got", dat.version, "expected", 0)
+				return false
+			}
+			log.Info("Node passed filter", "id", node.ID(), "chainID", dat.chainID)
+			return true
+		}
+		log.Info("OP Stack node filter enabled", "chainID", expectedChainID)
+	}
+
 	socket := listen(ctx, ln)
 	disc, err := discover.ListenV5(socket, ln, config)
 	if err != nil {
