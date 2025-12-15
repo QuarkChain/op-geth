@@ -1279,6 +1279,8 @@ func setBootstrapNodesV5(ctx *cli.Context, cfg *p2p.Config) {
 		}
 	case ctx.Uint64(NetworkIdFlag.Name) == 3335:
 		urls = params.BetaTestnetBootnodes
+	case ctx.Uint64(NetworkIdFlag.Name) == 110011:
+		urls = params.DeltaTestnetBootnodes
 	}
 
 	cfg.BootstrapNodesV5 = make([]*enode.Node, 0, len(urls))

@@ -61,6 +61,12 @@ var BetaTestnetBootnodes = []string{
 	"enode://4e9d3ba7d41cf1a42456c3e9d024808128027ead5d887a1365fd6181f75b4a7ca748acfac8f6b492aaa8fca349fbc0b07226b1772b6380608536494917a62f03@46.4.99.154:30303",
 }
 
+// DeltaTestnetBootnodes are the enode URLs of the P2P bootstrap nodes running on
+// the Delta testnet (network ID 110011).
+var DeltaTestnetBootnodes = []string{
+	"enr:-Iq4QDHDcAZR2jEx5QmB9qVKqj09nGJmzL6BIUCvw7qAOQE2N0gNmYL_Y785oDNgNklurT48cJQes3cDjpAPd0M0DuyGAZshloRDgmlkgnY0gmlwhIbRyI2Jc2VjcDI1NmsxoQJomlhwBBNILJqxhmbDKKp9bCY64ML7U17eyeZ34FlZJYN1ZHCCjh8",
+}
+
 var V5Bootnodes = []string{
 	// Teku team's bootnode
 	"enr:-KG4QMOEswP62yzDjSwWS4YEjtTZ5PO6r65CPqYBkgTTkrpaedQ8uEUo1uMALtJIvb2w_WWEVmg5yt1UAuK1ftxUU7QDhGV0aDKQu6TalgMAAAD__________4JpZIJ2NIJpcIQEnfA2iXNlY3AyNTZrMaEDfol8oLr6XJ7FsdAYE7lpJhKMls4G_v6qQOGKJUWGb_uDdGNwgiMog3VkcIIjKA", // # 4.157.240.54 | azure-us-east-virginia
