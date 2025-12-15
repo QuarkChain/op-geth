@@ -423,6 +423,11 @@ loop:
 func (tab *Table) doRefresh(done chan struct{}) {
 	defer close(done)
 
+	// Skip active discovery if NoActiveDiscover is set.
+	if tab.cfg.NoActiveDiscover {
+		return
+	}
+
 	// Load nodes from the database and insert
 	// them. This should yield a few previously seen nodes that are
 	// (hopefully) still alive.

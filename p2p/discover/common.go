@@ -59,6 +59,7 @@ type Config struct {
 	RefreshInterval         time.Duration            // used in bucket refresh
 	NoFindnodeLivenessCheck bool                     // turns off validation of table nodes in FINDNODE handler
 	NodeFilter              func(*enode.Node) bool   // filter function for discovered nodes; if set, only nodes passing the filter are added to the table
+	NoActiveDiscover        bool                     // if true, disables active discovery (lookups), only accepts inbound peers
 
 	// The options below are useful in very specific cases, like in unit tests.
 	V5ProtocolID *[6]byte

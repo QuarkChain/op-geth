@@ -44,6 +44,10 @@ var (
 		Name:  "opstack-chainid",
 		Usage: "Filter nodes by OP Stack chain ID (only nodes with matching opstack ENR entry will be accepted)",
 	}
+	noDiscoverFlag = &cli.BoolFlag{
+		Name:  "no-active-discovery",
+		Usage: "Disable active discovery (no outbound FINDNODE), only accept inbound peers",
+	}
 	discv5Command = &cli.Command{
 		Name:  "discv5",
 		Usage: "Node Discovery v5 tools",
@@ -90,7 +94,7 @@ var (
 		Name:   "listen",
 		Usage:  "Runs a node",
 		Action: discv5Listen,
-		Flags:  slices.Concat(discoveryNodeFlags, []cli.Flag{discv5DumpFlag, opStackChainIDFlag}),
+		Flags:  slices.Concat(discoveryNodeFlags, []cli.Flag{discv5DumpFlag, opStackChainIDFlag, noDiscoverFlag}),
 	}
 )
 
@@ -200,6 +204,12 @@ var _ enr.Entry = (*opStackENRData)(nil)
 // startV5 starts an ephemeral discovery v5 node.
 func startV5(ctx *cli.Context) (*discover.UDPv5, discover.Config) {
 	ln, config := makeDiscoveryConfig(ctx)
+
+	// Disable active discovery if --no-active-discovery is set
+	if ctx.Bool(noDiscoverFlag.Name) {
+		config.NoActiveDiscover = true
+		log.Info("Active discovery disabled, only accepting inbound peers")
+	}
 
 	// Set up OP Stack chain ID filter if specified
 	if ctx.IsSet(opStackChainIDFlag.Name) {
