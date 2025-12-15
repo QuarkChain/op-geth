@@ -510,8 +510,9 @@ func (tab *Table) handleAddNode(req addNodeOp) bool {
 		return false
 	}
 	// For nodes from inbound contact, there is an additional safety measure: if the table
-	// is still initializing the node is not added.
-	if req.isInbound && !tab.isInitDone() {
+	// is still initializing the node is not added. However, if there are no bootnodes
+	// (i.e., this is a bootnode itself), we skip this check to allow accepting inbound nodes.
+	if req.isInbound && !tab.isInitDone() && len(tab.nursery) > 0 {
 		return false
 	}
 	// Apply node filter if configured.
