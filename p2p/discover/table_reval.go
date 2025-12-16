@@ -145,11 +145,13 @@ func (tr *tableRevalidation) handleResponse(tab *Table, resp revalidationRespons
 		return
 	}
 
-	// Store potential seeds in database.
+	// Store potential seeds in database and update last pong time.
 	// This is done via defer to avoid holding Table lock while writing to DB.
 	defer func() {
 		if n.isValidatedLive && n.livenessChecks > 5 {
 			tab.db.UpdateNode(resp.n.Node)
+			// Update last pong time so QuerySeeds can find this node
+			tab.db.UpdateLastPongReceived(resp.n.ID(), resp.n.IPAddr(), time.Now())
 		}
 	}()
 

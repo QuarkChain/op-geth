@@ -54,10 +54,11 @@ type Config struct {
 	V5RespTimeout time.Duration     // timeout for v5 queries
 
 	// Node table configuration:
-	Bootnodes               []*enode.Node // list of bootstrap nodes
-	PingInterval            time.Duration // speed of node liveness check
-	RefreshInterval         time.Duration // used in bucket refresh
-	NoFindnodeLivenessCheck bool          // turns off validation of table nodes in FINDNODE handler
+	Bootnodes               []*enode.Node            // list of bootstrap nodes
+	PingInterval            time.Duration            // speed of node liveness check
+	RefreshInterval         time.Duration            // used in bucket refresh
+	NoFindnodeLivenessCheck bool                     // turns off validation of table nodes in FINDNODE handler
+	NodeFilter              func(*enode.Node) bool   // filter function for discovered nodes; if set, only nodes passing the filter are added to the table
 
 	// The options below are useful in very specific cases, like in unit tests.
 	V5ProtocolID *[6]byte
