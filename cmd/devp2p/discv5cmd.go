@@ -228,7 +228,7 @@ func startV5(ctx *cli.Context) (*discover.UDPv5, discover.Config) {
 		config.NodeFilter = func(node *enode.Node) bool {
 			var dat opStackENRData
 			if err := node.Load(&dat); err != nil {
-				log.Info("Node has no opstack ENR entry", "id", node.ID(), "ip", node.IP(), "err", err)
+				log.Debug("Node has no opstack ENR entry", "id", node.ID(), "ip", node.IP(), "err", err)
 				return false
 			}
 			if dat.chainID != expectedChainID {
@@ -251,7 +251,7 @@ func startV5(ctx *cli.Context) (*discover.UDPv5, discover.Config) {
 		config.NodeFilter = func(node *enode.Node) bool {
 			var dat chainIDENRData
 			if err := node.Load(&dat); err != nil {
-				log.Info("Node has no chainID ENR entry", "id", node.ID(), "ip", node.IP(), "err", err)
+				log.Debug("Node has no chainID ENR entry", "id", node.ID(), "ip", node.IP(), "err", err)
 				return false
 			}
 			if uint64(dat) != expectedChainID {
