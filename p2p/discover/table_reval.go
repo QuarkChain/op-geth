@@ -150,6 +150,7 @@ func (tr *tableRevalidation) handleResponse(tab *Table, resp revalidationRespons
 	defer func() {
 		if n.isValidatedLive && n.livenessChecks > 5 {
 			tab.db.UpdateNode(resp.n.Node)
+			tab.log.Info("Node stored in database", "id", resp.n.ID(), "ip", resp.n.IP(), "checks", n.livenessChecks)
 		}
 	}()
 

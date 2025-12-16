@@ -26,6 +26,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/syndtr/goleveldb/leveldb"
@@ -333,6 +334,7 @@ func (db *DB) expireNodes() {
 	var (
 		threshold    = time.Now().Add(-dbNodeExpiration).Unix()
 		youngestPong int64
+		youngestIP   netip.Addr
 		atEnd        = false
 	)
 	for !atEnd {
@@ -341,6 +343,7 @@ func (db *DB) expireNodes() {
 			time, _ := binary.Varint(it.Value())
 			if time > youngestPong {
 				youngestPong = time
+				youngestIP = ip
 			}
 			if time < threshold {
 				// Last pong from this IP older than threshold, remove fields belonging to it.
@@ -354,8 +357,10 @@ func (db *DB) expireNodes() {
 			// Remove everything if there was no recent enough pong.
 			if youngestPong > 0 && youngestPong < threshold {
 				deleteRange(db.lvl, nodeKey(id))
+				log.Info("Node expired from database", "id", id, "ip", youngestIP, "lastPong", time.Unix(youngestPong, 0))
 			}
 			youngestPong = 0
+			youngestIP = netip.Addr{}
 		}
 	}
 }
