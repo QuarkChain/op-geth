@@ -44,6 +44,10 @@ var (
 		Name:  "opstack-chainid",
 		Usage: "Filter nodes by OP Stack chain ID (only nodes with matching opstack ENR entry will be accepted)",
 	}
+	chainIDFlag = &cli.Uint64Flag{
+		Name:  "chainid",
+		Usage: "Filter nodes by chain ID (only nodes with matching chainID ENR entry will be accepted)",
+	}
 	noDiscoverFlag = &cli.BoolFlag{
 		Name:  "no-active-discovery",
 		Usage: "Disable active discovery (no outbound FINDNODE), only accept inbound peers",
@@ -94,7 +98,7 @@ var (
 		Name:   "listen",
 		Usage:  "Runs a node",
 		Action: discv5Listen,
-		Flags:  slices.Concat(discoveryNodeFlags, []cli.Flag{discv5DumpFlag, opStackChainIDFlag, noDiscoverFlag}),
+		Flags:  slices.Concat(discoveryNodeFlags, []cli.Flag{discv5DumpFlag, opStackChainIDFlag, chainIDFlag, noDiscoverFlag}),
 	}
 )
 
@@ -201,6 +205,13 @@ func (o *opStackENRData) DecodeRLP(s *rlp.Stream) error {
 
 var _ enr.Entry = (*opStackENRData)(nil)
 
+// chainIDENRData is the ENR entry for chain ID identification.
+type chainIDENRData uint64
+
+func (c chainIDENRData) ENRKey() string { return "chainID" }
+
+var _ enr.Entry = (*chainIDENRData)(nil)
+
 // startV5 starts an ephemeral discovery v5 node.
 func startV5(ctx *cli.Context) (*discover.UDPv5, discover.Config) {
 	ln, config := makeDiscoveryConfig(ctx)
@@ -232,6 +243,25 @@ func startV5(ctx *cli.Context) (*discover.UDPv5, discover.Config) {
 			return true
 		}
 		log.Info("OP Stack node filter enabled", "chainID", expectedChainID)
+	}
+
+	// Set up chain ID filter if specified
+	if ctx.IsSet(chainIDFlag.Name) {
+		expectedChainID := ctx.Uint64(chainIDFlag.Name)
+		config.NodeFilter = func(node *enode.Node) bool {
+			var dat chainIDENRData
+			if err := node.Load(&dat); err != nil {
+				log.Info("Node has no chainID ENR entry", "id", node.ID(), "ip", node.IP(), "err", err)
+				return false
+			}
+			if uint64(dat) != expectedChainID {
+				log.Info("Node has different chain ID", "id", node.ID(), "ip", node.IP(), "got", uint64(dat), "expected", expectedChainID)
+				return false
+			}
+			log.Info("Node passed chainID filter", "id", node.ID(), "ip", node.IP(), "chainID", uint64(dat))
+			return true
+		}
+		log.Info("Chain ID node filter enabled", "chainID", expectedChainID)
 	}
 
 	socket := listen(ctx, ln)
