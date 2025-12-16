@@ -573,6 +573,7 @@ func (tab *Table) nodeAdded(b *bucket, n *tableNode) {
 	if metrics.Enabled() {
 		bucketsCounter[b.index].Inc(1)
 	}
+	tab.log.Info("Node added to table", "b", b.index, "id", n.ID(), "ip", n.IPAddr())
 }
 
 func (tab *Table) nodeRemoved(b *bucket, n *tableNode) {
@@ -602,7 +603,7 @@ func (tab *Table) deleteInBucket(b *bucket, id enode.ID) *tableNode {
 
 	// Add replacement.
 	if len(b.replacements) == 0 {
-		tab.log.Debug("Removed dead node", "b", b.index, "id", n.ID(), "ip", n.IPAddr())
+		tab.log.Info("Node removed from table", "b", b.index, "id", n.ID(), "ip", n.IPAddr())
 		return nil
 	}
 	rindex := tab.rand.Intn(len(b.replacements))
@@ -610,7 +611,7 @@ func (tab *Table) deleteInBucket(b *bucket, id enode.ID) *tableNode {
 	b.replacements = slices.Delete(b.replacements, rindex, rindex+1)
 	b.entries = append(b.entries, rep)
 	tab.nodeAdded(b, rep)
-	tab.log.Debug("Replaced dead node", "b", b.index, "id", n.ID(), "ip", n.IPAddr(), "r", rep.ID(), "rip", rep.IPAddr())
+	tab.log.Info("Node removed from table", "b", b.index, "id", n.ID(), "ip", n.IPAddr(), "replacedBy", rep.ID(), "replacedByIP", rep.IPAddr())
 	return rep
 }
 
