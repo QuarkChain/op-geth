@@ -610,6 +610,8 @@ func (s *Ethereum) updateFilterMapsHeads() {
 
 func (s *Ethereum) setupDiscovery() error {
 	eth.StartENRUpdater(s.blockchain, s.p2pServer.LocalNode())
+	// Set chainID ENR entry
+	eth.SetChainIDENR(s.p2pServer.LocalNode(), s.blockchain.Config())
 
 	// Add eth nodes from DNS.
 	dnsclient := dnsdisc.NewClient(dnsdisc.Config{})
