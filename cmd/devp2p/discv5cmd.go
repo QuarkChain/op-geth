@@ -222,11 +222,11 @@ func startV5(ctx *cli.Context) (*discover.UDPv5, discover.Config) {
 				return false
 			}
 			if dat.chainID != expectedChainID {
-				log.Info("Node has different chain ID", "id", node.ID(), "ip", node.IP(), "got", dat.chainID, "expected", expectedChainID)
+				log.Debug("Node has different chain ID", "id", node.ID(), "ip", node.IP(), "got", dat.chainID, "expected", expectedChainID)
 				return false
 			}
 			if dat.version != 0 {
-				log.Info("Node has different version", "id", node.ID(), "ip", node.IP(), "got", dat.version, "expected", 0)
+				log.Debug("Node has different version", "id", node.ID(), "ip", node.IP(), "got", dat.version, "expected", 0)
 				return false
 			}
 			log.Info("Node passed filter", "id", node.ID(), "ip", node.IP(), "chainID", dat.chainID)
@@ -245,7 +245,7 @@ func startV5(ctx *cli.Context) (*discover.UDPv5, discover.Config) {
 				return false
 			}
 			if uint64(dat) != expectedChainID {
-				log.Info("Node has different chain ID", "id", node.ID(), "ip", node.IP(), "got", uint64(dat), "expected", expectedChainID)
+				log.Debug("Node has different chain ID", "id", node.ID(), "ip", node.IP(), "got", uint64(dat), "expected", expectedChainID)
 				return false
 			}
 			log.Info("Node passed chainID filter", "id", node.ID(), "ip", node.IP(), "chainID", uint64(dat))
