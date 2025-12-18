@@ -925,7 +925,7 @@ func (st *stateTransition) innerExecute() (*ExecutionResult, error) {
 		// are 0. This avoids a negative effectiveTip being applied to
 		// the coinbase when simulating calls.
 	} else {
-		shouldCheckGasFormula := !st.msg.SkipNonceChecks && !st.msg.SkipFromEOACheck
+		shouldCheckGasFormula := !st.msg.SkipNonceChecks && !st.msg.SkipTransactionChecks
 		fee := new(uint256.Int).SetUint64(st.gasUsed())
 		fee.Mul(fee, effectiveTipU256)
 
