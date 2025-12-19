@@ -67,6 +67,14 @@ var DeltaTestnetBootnodes = []string{
 	"enr:-Iq4QDHDcAZR2jEx5QmB9qVKqj09nGJmzL6BIUCvw7qAOQE2N0gNmYL_Y785oDNgNklurT48cJQes3cDjpAPd0M0DuyGAZshloRDgmlkgnY0gmlwhIbRyI2Jc2VjcDI1NmsxoQJomlhwBBNILJqxhmbDKKp9bCY64ML7U17eyeZ34FlZJYN1ZHCCjh8",
 }
 
+// QKCMainnetBootnodes are the enode URLs of the P2P bootstrap nodes running on
+// the QKC mainnet (network ID 100011).
+var QKCMainnetBootnodes = []string{
+	"enr:-Iq4QHDZj97UJRbrA42Zkj0fCl86U2Px6Kg-Ln7GgX2bQwodYvVSL2yGCc7GPjYO6uh02tgRThzTWt2kVrTD9qNJyxKGAZsw_eBngmlkgnY0gmlwhDQrqXmJc2VjcDI1NmsxoQNjZchkcwwFlThXNio7z_J4g7ao88vjjBxqFKSggJdMCIN1ZHCCjh8",
+	"enr:-Iq4QBVS7TlTqNHHI0GVNSaqERiXnNJffEXv6nQ136nSzZhgOoiZUTMai6SFuTdcHKvMyeN61oYW0I2J1ZDDSVH7GD-GAZs1U0YrgmlkgnY0gmlwhA36qp6Jc2VjcDI1NmsxoQP6HL9ROrs-rCNrWk02q7XCshX9XTPknByrMVBlqEja_4N1ZHCCjh8",
+	"enr:-Iq4QI5ZklSPoQ3v5i6_pDAYLIJ4SMXEqzej0TqfVAzIom4NXV8qc-t_t0yI9h4R-6o583AlMQQH2U-7lFHD7ephPuqGAZs1b4sWgmlkgnY0gmlwhI_0x9iJc2VjcDI1NmsxoQIa-iQuf0IkWrXtdAb7kpEO30P9Q13pnc4Yg6CPE0OTB4N1ZHCCjh8",
+}
+
 var V5Bootnodes = []string{
 	// Teku team's bootnode
 	"enr:-KG4QMOEswP62yzDjSwWS4YEjtTZ5PO6r65CPqYBkgTTkrpaedQ8uEUo1uMALtJIvb2w_WWEVmg5yt1UAuK1ftxUU7QDhGV0aDKQu6TalgMAAAD__________4JpZIJ2NIJpcIQEnfA2iXNlY3AyNTZrMaEDfol8oLr6XJ7FsdAYE7lpJhKMls4G_v6qQOGKJUWGb_uDdGNwgiMog3VkcIIjKA", // # 4.157.240.54 | azure-us-east-virginia
