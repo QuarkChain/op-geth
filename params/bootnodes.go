@@ -70,7 +70,7 @@ var DeltaTestnetBootnodes = []string{
 // QKCMainnetBootnodes are the enode URLs of the P2P bootstrap nodes running on
 // the QKC mainnet (network ID 100011).
 var QKCMainnetBootnodes = []string{
-	"enr:-Iq4QHDZj97UJRbrA42Zkj0fCl86U2Px6Kg-Ln7GgX2bQwodYvVSL2yGCc7GPjYO6uh02tgRThzTWt2kVrTD9qNJyxKGAZsw_eBngmlkgnY0gmlwhDQrqXmJc2VjcDI1NmsxoQNjZchkcwwFlThXNio7z_J4g7ao88vjjBxqFKSggJdMCIN1ZHCCjh8",
+	"enr:-Iq4QMoUR5EdMvvEcYXarNzE1EFNHSDMOxBe5ZlEblEvgIGXaHXSRtZYfZBhakd6LKa7n1iO1Zsyv5vsTtqj8ggoR0iGAZuxo-G-gmlkgnY0gmlwhDQrqXmJc2VjcDI1NmsxoQLcUMoj9fsZqHh5RKtgyYVI7RVM9wuim4QuXTkDYVMC4oN1ZHCCjh8",
 	"enr:-Iq4QBVS7TlTqNHHI0GVNSaqERiXnNJffEXv6nQ136nSzZhgOoiZUTMai6SFuTdcHKvMyeN61oYW0I2J1ZDDSVH7GD-GAZs1U0YrgmlkgnY0gmlwhA36qp6Jc2VjcDI1NmsxoQP6HL9ROrs-rCNrWk02q7XCshX9XTPknByrMVBlqEja_4N1ZHCCjh8",
 	"enr:-Iq4QI5ZklSPoQ3v5i6_pDAYLIJ4SMXEqzej0TqfVAzIom4NXV8qc-t_t0yI9h4R-6o583AlMQQH2U-7lFHD7ephPuqGAZs1b4sWgmlkgnY0gmlwhI_0x9iJc2VjcDI1NmsxoQIa-iQuf0IkWrXtdAb7kpEO30P9Q13pnc4Yg6CPE0OTB4N1ZHCCjh8",
 }
