@@ -18,8 +18,10 @@ package types
 
 import (
 	"bytes"
+	"encoding/json"
 	gomath "math"
 	"math/big"
+	"os"
 	"reflect"
 	"testing"
 
@@ -32,6 +34,41 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/holiman/uint256"
 )
+
+func TestGlamsterdamHeaderHash(t *testing.T) {
+	input, err := os.ReadFile("testdata/glamsterdam-sepolia-header.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var header Header
+	if err := json.Unmarshal(input, &header); err != nil {
+		t.Fatal(err)
+	}
+	if header.BlockAccessListHash == nil || header.SlotNumber == nil || *header.SlotNumber != 0xac8ac1 {
+		t.Fatal("Glamsterdam fields were not decoded from RPC JSON")
+	}
+	want := common.HexToHash("0xce79aa06c0f7165f224a49779a19310d7e55816d47c149d7f3acfc9d2f379a73")
+	if got := header.Hash(); got != want {
+		t.Fatalf("header hash mismatch: got %s, want %s", got, want)
+	}
+	encoded, err := rlp.EncodeToBytes(&header)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded Header
+	if err := rlp.DecodeBytes(encoded, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if got := decoded.Hash(); got != want {
+		t.Fatalf("RLP round-trip hash mismatch: got %s, want %s", got, want)
+	}
+	copy := CopyHeader(&header)
+	*header.BlockAccessListHash = common.Hash{}
+	*header.SlotNumber = 0
+	if got := copy.Hash(); got != want {
+		t.Fatalf("header copy changed with original: got %s, want %s", got, want)
+	}
+}
 
 // from bcValidBlockTest.json, "SimpleTx"
 func TestBlockEncoding(t *testing.T) {
